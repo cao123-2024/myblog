@@ -14,8 +14,13 @@ function supabaseApi(method, path, body) {
     }
   };
   if (body) opts.body = JSON.stringify(body);
-  return fetch(supabaseUrl + path, opts).then(function(r) {
-    if (!r.ok) return r.text().then(function(t) { throw new Error(t.slice(0, 200)); });
+  var url = supabaseUrl + path;
+  console.log('[DB] ' + method + ' ' + url + ' key_len=' + (supabaseKey ? supabaseKey.length : 0));
+  return fetch(url, opts).then(function(r) {
+    if (!r.ok) return r.text().then(function(t) {
+      console.error('[DB] FAIL ' + r.status + ': ' + t.slice(0, 200));
+      throw new Error(t.slice(0, 200));
+    });
     if (r.status === 204) return [];
     return r.json();
   });
