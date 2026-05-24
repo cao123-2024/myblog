@@ -1,45 +1,37 @@
-const { supabase } = require('./init');
+const { supabaseApi } = require('./init');
 
 function db(tableName) {
+  function filterStr(where) {
+    var keys = Object.keys(where);
+    if (keys.length === 0) return '';
+    return keys.map(function(k) {
+      return k + '=eq.' + encodeURIComponent(where[k]);
+    }).join('&');
+  }
+
   return {
-    async all() {
-      const { data, error } = await supabase.from(tableName).select('*').order('id', { ascending: true });
-      if (error) throw error;
-      return data || [];
+    all: function() {
+      return supabaseApi('GET', '/rest/v1/' + tableName + '?select=*&order=id.asc');
     },
-    async getById(id) {
-      const { data, error } = await supabase.from(tableName).select('*').eq('id', id).maybeSingle();
-      if (error) throw error;
-      return data || null;
+    getById: function(id) {
+      return supabaseApi('GET', '/rest/v1/' + tableName + '?select=*&id=eq.' + id).then(function(r) { return r && r.length ? r[0] : null; });
     },
-    async findOne(where) {
-      let q = supabase.from(tableName).select('*');
-      Object.keys(where).forEach(k => { q = q.eq(k, where[k]); });
-      const { data, error } = await q.limit(1).maybeSingle();
-      if (error) throw error;
-      return data || null;
+    findOne: function(where) {
+      var f = filterStr(where);
+      return supabaseApi('GET', '/rest/v1/' + tableName + '?select=*&' + f + '&limit=1').then(function(r) { return r && r.length ? r[0] : null; });
     },
-    async find(where) {
-      if (Object.keys(where).length === 0) return this.all();
-      let q = supabase.from(tableName).select('*').order('id', { ascending: true });
-      Object.keys(where).forEach(k => { q = q.eq(k, where[k]); });
-      const { data, error } = await q;
-      if (error) throw error;
-      return data || [];
+    find: function(where) {
+      var f = filterStr(where);
+      return supabaseApi('GET', '/rest/v1/' + tableName + '?select=*&order=id.asc' + (f ? '&' + f : ''));
     },
-    async insert(record) {
-      const { data, error } = await supabase.from(tableName).insert(record).select('*').single();
-      if (error) throw error;
-      return data;
+    insert: function(record) {
+      return supabaseApi('POST', '/rest/v1/' + tableName + '?select=*', record).then(function(r) { return r && r.length ? r[0] : null; });
     },
-    async update(id, updates) {
-      const { data, error } = await supabase.from(tableName).update(updates).eq('id', id).select('*').single();
-      if (error) throw error;
-      return data || null;
+    update: function(id, updates) {
+      return supabaseApi('PATCH', '/rest/v1/' + tableName + '?id=eq.' + id + '&select=*', updates).then(function(r) { return r && r.length ? r[0] : null; });
     },
-    async delete(id) {
-      const { error } = await supabase.from(tableName).delete().eq('id', id);
-      if (error) throw error;
+    delete: function(id) {
+      return supabaseApi('DELETE', '/rest/v1/' + tableName + '?id=eq.' + id);
     }
   };
 }
