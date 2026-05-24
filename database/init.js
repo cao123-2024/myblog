@@ -7,8 +7,8 @@ const connStr = process.env.POSTGRES_URL
   || '';
 
 const pool = new Pool({
-  connectionString: connStr.includes('sslmode') ? connStr : (connStr + (connStr.includes('?') ? '&' : '?') + 'sslmode=require'),
-  ssl: connStr.includes('sslmode') ? undefined : { rejectUnauthorized: false },
+  connectionString: connStr.includes('?sslmode=') || connStr.includes('&sslmode=') ? connStr : (connStr.includes('?') ? connStr + '&sslmode=require' : connStr + '?sslmode=require'),
+  ssl: { rejectUnauthorized: false },
   connectionTimeoutMillis: 10000
 });
 
