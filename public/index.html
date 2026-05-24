@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lumina — Liquid Glass</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 8C32 8 16 28 16 40a16 16 0 0032 0C48 28 32 8 32 8z' fill='%230078D4' opacity='0.9'/%3E%3Cpath d='M32 56a16 16 0 01-16-16c0-12 16-32 16-32s16 20 16 32a16 16 0 01-16 16z' fill='%230078D4'/%3E%3Ccircle cx='28' cy='38' r='3' fill='white' opacity='0.3'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/css/liquid-glass.css">
+<style>
+#app { min-height: 100vh; display: flex; flex-direction: column; }
+#app.hidden-init { display: none; }
+
+.navbar {
+  position: sticky; top: 0; z-index: 200;
+  background: rgba(15,15,15,0.1);
+  backdrop-filter: blur(28px) saturate(200%);
+  -webkit-backdrop-filter: blur(28px) saturate(200%);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  height: var(--nav-height);
+}
+.navbar-inner {
+  max-width: 1200px; height: 100%; margin: 0 auto; padding: 0 24px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.nav-logo {
+  font-size: 1.15rem; font-weight: 700; color: var(--blue); letter-spacing: 2px;
+  cursor: pointer; user-select: none; transition: opacity 0.2s ease;
+}
+.nav-logo:hover { opacity: 0.8; }
+.nav-links { display: flex; align-items: center; height: 100%; }
+.nav-link {
+  display: flex; align-items: center; height: var(--nav-height);
+  padding: 0 18px; font-size: 0.9rem; font-weight: 500;
+  color: var(--text-secondary); cursor: pointer;
+  transition: all 0.25s var(--jelly-soft);
+  position: relative; text-decoration: none; user-select: none;
+}
+.nav-link::after {
+  content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 0; height: 2.5px; background: var(--blue); border-radius: 2px;
+  transition: width 0.3s var(--jelly-soft);
+}
+.nav-link:hover { color: var(--text-primary); }
+.nav-link.active { color: var(--blue); }
+.nav-link.active::after { width: 60%; }
+.nav-right { display: flex; align-items: center; gap: 8px; }
+
+.main-content {
+  flex: 1; width: 100%; max-width: 1200px; margin: 0 auto; padding: 32px 24px;
+}
+.page { display: none; }
+.page.active { display: block; animation: fadeInUp 0.4s var(--jelly-soft); }
+
+/* ===== Carousel ===== */
+.carousel {
+  position: relative; width: 100%; height: 380px;
+  border-radius: var(--radius-2xl); overflow: hidden; margin-bottom: 36px;
+}
+.carousel-track {
+  display: flex; height: 100%;
+  transition: transform 0.6s var(--jelly-soft);
+}
+.carousel-slide {
+  min-width: 100%; height: 100%; display: flex; align-items: flex-end;
+  background-size: cover; background-position: center; position: relative; cursor: pointer;
+}
+.carousel-slide::before {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.7));
+}
+.carousel-slide-content { position: relative; z-index: 2; padding: 40px; color: #e8e8e8; max-width: 600px; }
+.carousel-slide-content h2 { font-size: 1.8rem; font-weight: 600; margin-bottom: 8px; }
+.carousel-slide-content p { font-size: 1rem; opacity: 0.8; }
+.carousel-dots {
+  position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 8px; z-index: 3;
+}
+.carousel-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: rgba(255,255,255,0.3); cursor: pointer;
+  transition: all 0.3s var(--jelly-soft);
+}
+.carousel-dot.active { background: #fff; width: 24px; border-radius: 4px; }
+.carousel-btn {
+  position: absolute; top: 50%; transform: translateY(-50%); z-index: 3;
+  width: 40px; height: 40px; border-radius: 50%;
+  background: rgba(255,255,255,0.15); backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.2); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 1.2rem; transition: all 0.2s ease;
+}
+.carousel-btn:hover { background: rgba(255,255,255,0.3); }
+.carousel-btn.prev { left: 16px; }
+.carousel-btn.next { right: 16px; }
+
+/* ===== Article Card ===== */
+.article-card {
+  display: flex; gap: 24px; padding: 24px; cursor: pointer;
+  transition: all 0.35s var(--jelly-soft); overflow: hidden;
+}
+.article-card:hover {
+  box-shadow: var(--shadow-07), inset 0 1px 0 rgba(255,255,255,0.06);
+  transform: translateY(-2px);
+}
+.article-card-img {
+  width: 200px; height: 140px; border-radius: var(--radius-lg);
+  background-size: cover; background-position: center;
+  flex-shrink: 0; background-color: rgba(255,255,255,0.03);
+}
+.article-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+.article-card-body h3 { font-size: 1.15rem; font-weight: 600; margin-bottom: 8px; }
+.article-card-body p { font-size: 0.875rem; color: var(--text-secondary); line-height: 1.5;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.article-card-meta { display: flex; align-items: center; gap: 12px; margin-top: 8px; font-size: 0.8rem; color: var(--text-tertiary); }
+.article-card-actions {
+  position: absolute; top: 12px; right: 12px;
+  display: flex; gap: 4px; opacity: 0; transition: opacity 0.2s ease;
+}
+.article-card:hover .article-card-actions { opacity: 1; }
+
+/* ===== Article Detail ===== */
+.article-detail { padding: 0; }
+.article-detail-cover {
+  width: 100%; height: 340px; border-radius: var(--radius-2xl);
+  background-size: cover; background-position: center;
+  margin-bottom: 24px; background-color: rgba(255,255,255,0.03);
+}
+.article-detail h1 { font-size: 2rem; font-weight: 700; margin-bottom: 12px; }
+.article-detail-content {
+  font-size: 1.05rem; line-height: 1.8; color: var(--text-primary);
+  white-space: pre-wrap; word-break: break-word; padding: 28px;
+}
+.article-detail-content img { max-width: 100%; border-radius: var(--radius-lg); margin: 16px 0; }
+
+/* ===== Comments ===== */
+.comment-item {
+  display: flex; gap: 14px; padding: 16px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.comment-avatar {
+  width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+  background: rgba(255,255,255,0.04); cursor: pointer;
+  background-size: cover; background-position: center;
+  transition: transform 0.2s var(--jelly-soft);
+}
+.comment-avatar:hover { transform: scale(1.15); }
+.comment-body { flex: 1; min-width: 0; }
+.comment-author { font-weight: 600; font-size: 0.9rem; cursor: pointer; }
+.comment-author:hover { color: var(--blue); }
+.comment-text { font-size: 0.9rem; margin-top: 4px; line-height: 1.5; }
+.comment-time { font-size: 0.75rem; color: var(--text-tertiary); margin-top: 4px; }
+
+/* ===== Profile ===== */
+.profile-header {
+  position: relative; border-radius: var(--radius-2xl); overflow: hidden; margin-bottom: 24px;
+}
+.profile-bg { width: 100%; height: 200px; background-size: cover; background-position: center; background-color: rgba(255,255,255,0.03); }
+.profile-avatar-wrap { position: absolute; bottom: -40px; left: 40px; }
+.profile-avatar-lg {
+  width: 90px; height: 90px; border-radius: 50%;
+  border: 3px solid rgba(15,15,15,0.5); backdrop-filter: blur(10px);
+  background-size: cover; background-position: center; background-color: rgba(255,255,255,0.04);
+}
+.profile-info { padding: 52px 40px 24px; }
+.profile-info h2 { font-size: 1.5rem; font-weight: 700; }
+.profile-info .bio { color: var(--text-secondary); margin-top: 6px; }
+
+/* ===== Admin ===== */
+.admin-table { width: 100%; border-collapse: collapse; }
+.admin-table th, .admin-table td { padding: 12px 16px; text-align: left; font-size: 0.875rem; }
+.admin-table th { font-weight: 600; color: var(--text-secondary); border-bottom: 2px solid rgba(255,255,255,0.06); }
+.admin-table td { border-bottom: 1px solid rgba(255,255,255,0.04); }
+.admin-table tr:hover td { background: var(--bg-glass); }
+
+/* ===== Form ===== */
+.form-card { max-width: 420px; margin: 0 auto; padding: 36px; }
+
+/* ===== Chat ===== */
+.chat-layout { display: flex; gap: 24px; height: calc(100vh - var(--nav-height) - 64px); }
+.chat-sidebar { width: 280px; flex-shrink: 0; display: flex; flex-direction: column; overflow: hidden; }
+.chat-main { flex: 1; display: flex; flex-direction: column; }
+.chat-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+.chat-msg { max-width: 70%; padding: 10px 16px; border-radius: 16px; font-size: 0.9rem; line-height: 1.5; }
+.chat-msg.mine { align-self: flex-end; background: var(--blue); color: #0a0a0a; border-bottom-right-radius: 4px; }
+.chat-msg.theirs { align-self: flex-start; background: var(--bg-glass); backdrop-filter: blur(12px); border-bottom-left-radius: 4px; }
+.chat-input-row { display: flex; gap: 8px; padding: 12px 0; }
+
+/* ===== Swipe Login Card ===== */
+.login-swiper {
+  max-width: 400px; width: 90%; position: relative;
+  animation: scaleIn 0.6s var(--jelly-bounce);
+}
+.login-swiper::before { display: none; }
+.login-swiper:hover {
+  background: var(--bg-glass-card);
+  box-shadow: var(--shadow-05), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 0 0 1px rgba(255,255,255,0.04);
+  transform: none; border-color: var(--border-glass);
+}
+
+.login-clip {
+  overflow: hidden;
+  border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+}
+
+.login-track {
+  display: flex; width: 300%; transition: transform 0.55s var(--jelly-bounce), height 0.4s var(--jelly-bounce);
+  will-change: transform; touch-action: pan-y; align-items: flex-start;
+}
+.login-track.dragging { transition: none; }
+
+.login-panel {
+  width: 33.333%; flex-shrink: 0; padding: 40px 36px;
+}
+.login-panel h2 {
+  font-size: 1.6rem; font-weight: 700; text-align: center; margin-bottom: 8px;
+  letter-spacing: 1px;
+}
+.login-subtitle { text-align: center; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 28px; }
+.login-form-group { margin-bottom: 18px; }
+.login-form-group label { display: block; font-size: 0.8rem; font-weight: 500; margin-bottom: 6px; color: var(--text-secondary); }
+
+/* Swipe dots */
+.swipe-dots {
+  display: flex; justify-content: center; gap: 8px; padding: 0 0 16px;
+}
+.swipe-dot {
+  width: 6px; height: 6px; border-radius: 3px;
+  background: rgba(255,255,255,0.15); cursor: pointer;
+  transition: all 0.35s var(--jelly-soft);
+}
+.swipe-dot.active { background: var(--blue); width: 20px; }
+
+/* Admin verify panel — back arrow */
+.verify-back {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: none; border: none; color: var(--text-secondary);
+  cursor: pointer; font-size: 0.85rem; padding: 4px 0; margin-bottom: 24px;
+  transition: color 0.2s ease, transform 0.2s var(--jelly-soft);
+  font-family: inherit;
+}
+.verify-back:hover { color: var(--text-primary); transform: translateX(-3px); }
+.verify-back svg { width: 18px; height: 18px; }
+
+/* Guest login */
+.guest-row {
+  text-align: center; padding-bottom: 20px;
+}
+.guest-row button {
+  background: none; border: none; color: var(--text-tertiary);
+  font-size: 0.8rem; cursor: pointer; font-family: inherit;
+  transition: color 0.2s ease; padding: 4px 8px;
+}
+.guest-row button:hover { color: var(--text-secondary); }
+
+/* Password toggle eye */
+.input-wrap { position: relative; }
+.input-wrap .input { padding-right: 40px; }
+.eye-btn {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; cursor: pointer; font-size: 1.1rem;
+  color: var(--text-tertiary); padding: 4px; line-height: 1;
+  transition: color 0.2s ease, transform 0.2s var(--jelly-soft);
+}
+.eye-btn:hover { color: var(--text-secondary); transform: translateY(-50%) scale(1.2); }
+
+/* Field error messages */
+.field-error {
+  font-size: 0.75rem; color: #CF222E; margin-top: 4px; min-height: 18px;
+  transition: opacity 0.3s ease; opacity: 0;
+}
+.field-error.show { opacity: 1; }
+.input.error { border-color: #CF222E !important; box-shadow: 0 0 0 3px rgba(207,34,46,0.2) !important; }
+
+/* File input */
+.input[type="file"] {
+  padding: 8px 12px; cursor: pointer; color: var(--text-secondary);
+}
+.input[type="file"]::file-selector-button {
+  background: var(--bg-glass); color: var(--text-primary);
+  border: 1px solid var(--border-glass); border-radius: var(--radius-sm);
+  padding: 6px 14px; margin-right: 10px; cursor: pointer;
+  font-family: inherit; font-size: 0.8rem;
+  transition: all 0.2s var(--jelly-soft);
+}
+.input[type="file"]::file-selector-button:hover {
+  background: var(--bg-glass-hover); border-color: rgba(255,255,255,0.15);
+}
+
+/* Entry progress bar */
+.entry-progress-wrap {
+  position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%);
+  width: 260px; height: 4px; border-radius: 2px;
+  background: rgba(255,255,255,0.08); overflow: hidden;
+}
+.entry-progress-bar {
+  height: 100%; width: 0; border-radius: 2px;
+  background: #e8e8e8;
+  box-shadow: 0 0 8px rgba(255,255,255,0.3), 0 0 20px rgba(255,255,255,0.1);
+  transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.entry-progress-bar.running {
+  animation: progressFill 1.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+.entry-progress-bar::after {
+  content: ''; position: absolute; top: 0; right: 0; width: 40px; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4));
+  border-radius: 2px;
+}
+@keyframes progressFill {
+  0% { width: 0; }
+  40% { width: 70%; }
+  70% { width: 92%; }
+  100% { width: 100%; }
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 768px) {
+  .nav-link { padding: 0 10px; font-size: 0.8rem; }
+  .main-content { padding: 20px 12px; }
+  .carousel { height: 220px; }
+  .article-card { flex-direction: column; }
+  .article-card-img { width: 100%; height: 180px; }
+  .profile-avatar-wrap { left: 20px; }
+  .profile-info { padding-left: 20px; }
+  .chat-layout { flex-direction: column; height: auto; }
+  .chat-sidebar { width: 100%; max-height: 200px; }
+  .modal-content { padding: 24px; margin: 12px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ===== ENTRY ANIMATION ===== -->
+<div class="entry-overlay" id="entry-overlay">
+  <div class="entry-glow"></div>
+  <div class="entry-name" id="entry-name">LUMINA</div>
+  <div class="entry-progress-wrap"><div class="entry-progress-bar"></div></div>
+</div>
+
+<div class="login-screen" id="login-screen">
+  <div class="card-glass login-swiper" id="login-swiper">
+    <div class="login-clip">
+      <div class="login-track" id="login-track">
+
+      <!-- Panel 0: Login -->
+      <div class="login-panel" data-panel="0">
+        <h2>LUMINA</h2>
+        <p class="login-subtitle">登录以继续</p>
+
+        <div class="login-form-group">
+          <label>用户名</label>
+          <input class="input input-glass" id="login-username" placeholder="输入用户名" autocomplete="username">
+          <p class="field-error" id="err-username"></p>
+        </div>
+        <div class="login-form-group">
+          <label>密码</label>
+          <div class="input-wrap">
+            <input class="input input-glass" type="password" id="login-password" placeholder="输入密码" autocomplete="current-password">
+            <button class="eye-btn" id="eye-password" type="button" onclick="togglePassword('login-password','eye-password')">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <p class="field-error" id="err-password"></p>
+        </div>
+
+        <button class="btn btn-primary btn-lg w-full mt-3" id="login-submit-btn">登 录</button>
+      </div>
+
+      <!-- Panel 1: Register -->
+      <div class="login-panel" data-panel="1">
+        <h2>创建账号</h2>
+        <p class="login-subtitle">加入 LUMINA</p>
+
+        <div class="login-form-group">
+          <label>用户名</label>
+          <input class="input input-glass" id="reg-username" placeholder="输入用户名">
+          <p class="field-error" id="err-reg-username"></p>
+        </div>
+        <div class="login-form-group">
+          <label>昵称</label>
+          <input class="input input-glass" id="reg-nickname" placeholder="显示名称">
+        </div>
+        <div class="login-form-group">
+          <label>密码</label>
+          <div class="input-wrap">
+            <input class="input input-glass" type="password" id="reg-password" placeholder="输入密码">
+            <button class="eye-btn" id="eye-reg-password" type="button" onclick="togglePassword('reg-password','eye-reg-password')">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <p class="field-error" id="err-reg-password"></p>
+        </div>
+        <div class="login-form-group">
+          <label>确认密码</label>
+          <div class="input-wrap">
+            <input class="input input-glass" type="password" id="reg-confirm" placeholder="再次输入密码">
+            <button class="eye-btn" id="eye-confirm" type="button" onclick="togglePassword('reg-confirm','eye-confirm')">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <p class="field-error" id="err-confirm"></p>
+        </div>
+
+        <button class="btn btn-primary btn-lg w-full mt-3" id="reg-submit-btn">注 册</button>
+      </div>
+
+      <!-- Panel 2: Admin Verify -->
+      <div class="login-panel" data-panel="2">
+        <button class="verify-back" onclick="swipeTo(0)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          返回登录
+        </button>
+        <h2>管理员验证</h2>
+        <p class="login-subtitle">请输入终端显示的6位验证码</p>
+
+        <div class="login-form-group">
+          <label>验证码</label>
+          <input class="input input-glass" id="admin-verify-code" placeholder="6位数字" autofocus>
+          <p class="field-error" id="err-verify-code"></p>
+        </div>
+
+        <button class="btn btn-primary btn-lg w-full mt-3" id="admin-verify-btn">确认验证</button>
+      </div>
+
+      </div>
+
+    </div>
+
+    <!-- Swipe dots (login / register only) -->
+    <div class="swipe-dots">
+      <div class="swipe-dot active" data-dot="0"></div>
+      <div class="swipe-dot" data-dot="1"></div>
+    </div>
+
+    <div class="guest-row">
+      <button id="guest-btn">游客浏览</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MAIN APP (hidden until login) ===== -->
+<div id="app" class="hidden-init">
+  <nav class="navbar">
+    <div class="navbar-inner">
+      <div class="nav-logo" onclick="navigate('home')">LUMINA</div>
+      <div class="nav-links" id="nav-links">
+        <a class="nav-link active" data-page="home" onclick="navigate('home')">首页</a>
+        <a class="nav-link" data-page="games" onclick="navigate('games')">游戏</a>
+        <a class="nav-link" data-page="downloads" onclick="navigate('downloads')">下载</a>
+        <a class="nav-link" data-page="friends" onclick="navigate('friends')">好友</a>
+        <a class="nav-link admin-only hidden" data-page="admin" onclick="navigate('admin')">管理</a>
+      </div>
+      <div class="nav-right" id="nav-right">
+        <div id="nav-user-info" class="hidden flex items-center gap-2">
+          <div class="comment-avatar" id="nav-avatar" style="width:32px;height:32px;cursor:pointer" onclick="navigate('profile')"></div>
+          <span class="text-sm font-medium" id="nav-username" style="cursor:pointer" onclick="navigate('profile')"></span>
+          <button class="btn btn-glass btn-sm btn-icon" onclick="navigate('messages')" style="font-size:0.8rem" title="消息">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          </button>
+          <button class="btn btn-glass btn-sm" onclick="Store.logout();showLoginScreen()" style="font-size:0.8rem">退出</button>
+        </div>
+      </div>
+    </div>
+  </nav>
+  <div class="main-content" id="main-content"></div>
+</div>
+
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal-content" id="modal-content" onclick="event.stopPropagation()"></div>
+</div>
+<div class="toast-container" id="toast-container"></div>
+
+<script src="/js/app.js"></script>
+<script src="/js/components/modal.js"></script>
+<script src="/js/pages/login.js"></script>
+<script src="/js/pages/home.js"></script>
+<script src="/js/pages/article.js"></script>
+<script src="/js/pages/admin.js"></script>
+<script src="/js/pages/friends.js"></script>
+<script src="/js/pages/profile.js"></script>
+<script src="/js/pages/messages.js"></script>
+<script src="/js/pages/games.js"></script>
+<script src="/js/pages/downloads.js"></script>
+<script src="/js/pages/static.js"></script>
+<script>
+(function(){
+  var entryOvr = document.getElementById('entry-overlay');
+  var loginScr = document.getElementById('login-screen');
+  var appEl = document.getElementById('app');
+
+  appEl.classList.remove('hidden-init');
+  appEl.style.display = '';
+
+  /* Check saved login first */
+  var savedToken = localStorage.getItem('token') || '';
+
+  function bootNoLogin(){
+    loginScr.style.display = 'none';
+    entryOvr.style.opacity = '0';
+    entryOvr.style.pointerEvents = 'none';
+    entryOvr.remove();
+    App.init();
+    updateNav();
+    navigate('home');
+  }
+
+  function bootWithEntry(){
+    loginScr.style.display = 'flex';
+
+    setTimeout(function(){
+      progBar = document.querySelector('.entry-progress-bar');
+      if(progBar) progBar.classList.add('running');
+    }, 200);
+
+    setTimeout(function(){
+      entryOvr.style.transition = 'opacity 0.5s ease';
+      entryOvr.style.opacity = '0';
+      setTimeout(function(){
+        entryOvr.remove();
+        loginScr.style.display = 'flex';
+        var u = document.getElementById('login-username');
+        if(u) u.focus();
+        if(typeof adjustTrackHeight === 'function') adjustTrackHeight(0);
+      }, 500);
+    }, 2000);
+  }
+
+  if(savedToken){
+    /* Has token — verify silently first. Use user token only. */
+    API.token = savedToken;
+    API.adminToken = '';
+    API.get('/me').then(function(data){
+      Store.user = data.user;
+      Store.token = savedToken;
+      API.token = savedToken;
+      Store.adminToken = '';
+      API.adminToken = '';
+      localStorage.removeItem('adminToken');
+      bootNoLogin();
+    }).catch(function(){
+      /* Token expired or invalid — wipe everything and show login */
+      localStorage.clear();
+      Store.token = '';
+      Store.adminToken = '';
+      Store.user = null;
+      API.token = '';
+      API.adminToken = '';
+      bootWithEntry();
+      App.init();
+    });
+  } else {
+    bootWithEntry();
+    App.init();
+  }
+
+  window.showApp = function(){
+    loginScr.style.display = 'none';
+    updateNav();
+    navigate('home');
+  };
+
+  window.showLoginScreen = function(){
+    appEl.classList.add('hidden-init');
+    loginScr.style.display = 'flex';
+    loginScr.style.webkitMaskImage = '';
+    loginScr.style.maskImage = '';
+    document.getElementById('app').style.display = 'none';
+    resetLoginForm();
+    document.getElementById('login-username').focus();
+    setTimeout(function(){ if(typeof adjustTrackHeight === 'function') adjustTrackHeight(0); }, 50);
+  };
+
+})();
+</script>
+</body>
+</html>
