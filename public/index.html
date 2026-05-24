@@ -488,24 +488,27 @@
   var loginScr = document.getElementById('login-screen');
   var appEl = document.getElementById('app');
 
-  appEl.classList.remove('hidden-init');
-  appEl.style.display = '';
+  /* App stays hidden until login succeeds or token is verified */
+  appEl.style.display = 'none';
 
   /* Check saved login first */
   var savedToken = localStorage.getItem('token') || '';
 
   function bootNoLogin(){
     loginScr.style.display = 'none';
-    entryOvr.style.opacity = '0';
-    entryOvr.style.pointerEvents = 'none';
-    entryOvr.remove();
+    if(entryOvr){
+      entryOvr.style.opacity = '0';
+      entryOvr.style.pointerEvents = 'none';
+    }
+    appEl.style.display = '';
+    if(entryOvr) entryOvr.remove();
     App.init();
     updateNav();
     navigate('home');
   }
 
   function bootWithEntry(){
-    /* Entry overlay is visible by default. Login hidden until animation ends. */
+    /* Entry overlay visible. App hidden. Login hidden. */
     loginScr.style.display = 'none';
 
     setTimeout(function(){
@@ -513,12 +516,13 @@
       if(progBar) progBar.classList.add('running');
     }, 200);
 
+    /* After 2s: overlay starts fading AND login appears underneath */
     setTimeout(function(){
+      loginScr.style.display = 'flex';
       entryOvr.style.transition = 'opacity 0.5s ease';
       entryOvr.style.opacity = '0';
       setTimeout(function(){
         entryOvr.remove();
-        loginScr.style.display = 'flex';
         var u = document.getElementById('login-username');
         if(u) u.focus();
         if(typeof adjustTrackHeight === 'function') adjustTrackHeight(0);
@@ -527,7 +531,6 @@
   }
 
   if(savedToken){
-    /* Has token — verify silently first. Use user token only. */
     API.token = savedToken;
     API.adminToken = '';
     API.get('/me').then(function(data){
@@ -539,7 +542,6 @@
       localStorage.removeItem('adminToken');
       bootNoLogin();
     }).catch(function(){
-      /* Token expired or invalid — wipe everything and show login */
       localStorage.clear();
       Store.token = '';
       Store.adminToken = '';
@@ -547,25 +549,25 @@
       API.token = '';
       API.adminToken = '';
       bootWithEntry();
-      App.init();
     });
   } else {
     bootWithEntry();
-    App.init();
   }
 
   window.showApp = function(){
+    appEl.style.display = '';
     loginScr.style.display = 'none';
+    loginScr.style.webkitMaskImage = '';
+    loginScr.style.maskImage = '';
     updateNav();
     navigate('home');
   };
 
   window.showLoginScreen = function(){
-    appEl.classList.add('hidden-init');
+    appEl.style.display = 'none';
     loginScr.style.display = 'flex';
     loginScr.style.webkitMaskImage = '';
     loginScr.style.maskImage = '';
-    document.getElementById('app').style.display = 'none';
     resetLoginForm();
     document.getElementById('login-username').focus();
     setTimeout(function(){ if(typeof adjustTrackHeight === 'function') adjustTrackHeight(0); }, 50);
