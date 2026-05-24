@@ -1,15 +1,21 @@
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 
-const connStr = process.env.POSTGRES_URL
+const rawUrl = process.env.POSTGRES_URL
   || process.env.POSTGRES_PRISMA_URL
   || process.env.DATABASE_URL
   || '';
 
+const parsed = new URL(rawUrl);
+
 const pool = new Pool({
-  connectionString: connStr.includes('?sslmode=') || connStr.includes('&sslmode=') ? connStr : (connStr.includes('?') ? connStr + '&sslmode=require' : connStr + '?sslmode=require'),
+  host: parsed.hostname,
+  port: parseInt(parsed.port || '5432'),
+  database: parsed.pathname.slice(1),
+  user: decodeURIComponent(parsed.username),
+  password: decodeURIComponent(parsed.password),
   ssl: { rejectUnauthorized: false },
-  connectionTimeoutMillis: 10000
+  connectionTimeoutMillis: 15000
 });
 
 let dbReady = false;
