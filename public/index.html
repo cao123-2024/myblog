@@ -487,49 +487,41 @@
   var entryOvr = document.getElementById('entry-overlay');
   var loginScr = document.getElementById('login-screen');
   var appEl = document.getElementById('app');
+  var resolved = false;
 
-  /* App stays hidden until login succeeds or token is verified */
   appEl.style.display = 'none';
+  loginScr.style.display = 'none';
 
-  /* Check saved login first */
   var savedToken = localStorage.getItem('token') || '';
+  var t0 = Date.now();
 
-  function bootNoLogin(){
+  function showApp(){
+    if(resolved) return;
+    resolved = true;
     loginScr.style.display = 'none';
-    if(entryOvr){
-      entryOvr.style.opacity = '0';
-      entryOvr.style.pointerEvents = 'none';
-    }
     appEl.style.display = '';
-    if(entryOvr) entryOvr.remove();
     App.init();
     updateNav();
     navigate('home');
   }
 
-  function bootWithEntry(){
-    /* Entry overlay visible. App hidden. Login hidden. */
-    loginScr.style.display = 'none';
-
-    setTimeout(function(){
-      progBar = document.querySelector('.entry-progress-bar');
-      if(progBar) progBar.classList.add('running');
-    }, 200);
-
-    /* After 2s: overlay starts fading AND login appears underneath */
-    setTimeout(function(){
-      loginScr.style.display = 'flex';
-      entryOvr.style.transition = 'opacity 0.5s ease';
-      entryOvr.style.opacity = '0';
-      setTimeout(function(){
-        entryOvr.remove();
-        var u = document.getElementById('login-username');
-        if(u) u.focus();
-        if(typeof adjustTrackHeight === 'function') adjustTrackHeight(0);
-      }, 500);
-    }, 2000);
+  function showLogin(){
+    if(resolved) return;
+    resolved = true;
+    appEl.style.display = 'none';
+    loginScr.style.display = 'flex';
+    var u = document.getElementById('login-username');
+    if(u) u.focus();
+    if(typeof adjustTrackHeight === 'function') adjustTrackHeight(0);
   }
 
+  /* ---- Entry animation always plays ---- */
+  setTimeout(function(){
+    progBar = document.querySelector('.entry-progress-bar');
+    if(progBar) progBar.classList.add('running');
+  }, 200);
+
+  /* Check token in background while animation runs */
   if(savedToken){
     API.token = savedToken;
     API.adminToken = '';
@@ -540,7 +532,10 @@
       Store.adminToken = '';
       API.adminToken = '';
       localStorage.removeItem('adminToken');
-      bootNoLogin();
+      // Align with entry fade: delay so app appears when entry is done
+      var elapsed = Date.now() - t0;
+      var delay = Math.max(0, 2200 - elapsed);
+      setTimeout(function(){ showApp(); }, delay);
     }).catch(function(){
       localStorage.clear();
       Store.token = '';
@@ -548,11 +543,18 @@
       Store.user = null;
       API.token = '';
       API.adminToken = '';
-      bootWithEntry();
     });
-  } else {
-    bootWithEntry();
   }
+
+  /* After entry animation: transition to login (or app if token was valid) */
+  setTimeout(function(){
+    entryOvr.style.transition = 'opacity 0.5s ease';
+    entryOvr.style.opacity = '0';
+    setTimeout(function(){
+      entryOvr.remove();
+      if(!resolved) showLogin();
+    }, 500);
+  }, 2000);
 
   window.showApp = function(){
     appEl.style.display = '';
