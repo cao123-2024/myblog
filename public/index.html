@@ -505,7 +505,8 @@
   }
 
   function bootWithEntry(){
-    loginScr.style.display = 'flex';
+    /* Entry overlay is visible by default. Login hidden until animation ends. */
+    loginScr.style.display = 'none';
 
     setTimeout(function(){
       progBar = document.querySelector('.entry-progress-bar');
