@@ -1,51 +1,45 @@
-const { pool } = require('./init');
+const { supabase } = require('./init');
 
 function db(tableName) {
   return {
     async all() {
-      const r = await pool.query(`SELECT * FROM ${tableName} ORDER BY id`);
-      return r.rows;
+      const { data, error } = await supabase.from(tableName).select('*').order('id', { ascending: true });
+      if (error) throw error;
+      return data || [];
     },
     async getById(id) {
-      const r = await pool.query(`SELECT * FROM ${tableName} WHERE id = $1`, [id]);
-      return r.rows[0] || null;
+      const { data, error } = await supabase.from(tableName).select('*').eq('id', id).maybeSingle();
+      if (error) throw error;
+      return data || null;
     },
     async findOne(where) {
-      const keys = Object.keys(where);
-      const conds = keys.map((k, i) => `"${k}" = $${i + 1}`);
-      const r = await pool.query(`SELECT * FROM ${tableName} WHERE ${conds.join(' AND ')} LIMIT 1`, keys.map(k => where[k]));
-      return r.rows[0] || null;
+      let q = supabase.from(tableName).select('*');
+      Object.keys(where).forEach(k => { q = q.eq(k, where[k]); });
+      const { data, error } = await q.limit(1).maybeSingle();
+      if (error) throw error;
+      return data || null;
     },
     async find(where) {
-      const keys = Object.keys(where);
-      if (keys.length === 0) return this.all();
-      const conds = keys.map((k, i) => `"${k}" = $${i + 1}`);
-      const r = await pool.query(`SELECT * FROM ${tableName} WHERE ${conds.join(' AND ')} ORDER BY id`, keys.map(k => where[k]));
-      return r.rows;
+      if (Object.keys(where).length === 0) return this.all();
+      let q = supabase.from(tableName).select('*').order('id', { ascending: true });
+      Object.keys(where).forEach(k => { q = q.eq(k, where[k]); });
+      const { data, error } = await q;
+      if (error) throw error;
+      return data || [];
     },
     async insert(record) {
-      const keys = Object.keys(record);
-      const vals = keys.map(k => record[k]);
-      const pls = keys.map((_, i) => '$' + (i + 1));
-      const r = await pool.query(
-        `INSERT INTO ${tableName} (${keys.map(k => `"${k}"`).join(',')}) VALUES (${pls.join(',')}) RETURNING *`,
-        vals
-      );
-      return r.rows[0];
+      const { data, error } = await supabase.from(tableName).insert(record).select('*').single();
+      if (error) throw error;
+      return data;
     },
     async update(id, updates) {
-      const keys = Object.keys(updates);
-      if (keys.length === 0) return null;
-      const sets = keys.map((k, i) => `"${k}" = $${i + 2}`);
-      const vals = keys.map(k => updates[k]);
-      const r = await pool.query(
-        `UPDATE ${tableName} SET ${sets.join(',')} WHERE id = $1 RETURNING *`,
-        [id, ...vals]
-      );
-      return r.rows[0] || null;
+      const { data, error } = await supabase.from(tableName).update(updates).eq('id', id).select('*').single();
+      if (error) throw error;
+      return data || null;
     },
     async delete(id) {
-      await pool.query(`DELETE FROM ${tableName} WHERE id = $1`, [id]);
+      const { error } = await supabase.from(tableName).delete().eq('id', id);
+      if (error) throw error;
     }
   };
 }
