@@ -1,12 +1,27 @@
 const express = require('express');
 const path = require('path');
-const { initDb } = require('./database/init');
+const { initDb, dbReady } = require('./database/init');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const isVercel = process.env.VERCEL === '1';
 
 app.use(express.json());
+
+/* Defer all requests until database is ready */
+let _ready = false;
+app.use(async (req, res, next) => {
+  if (_ready) return next();
+  try {
+    await initDb();
+    _ready = true;
+    next();
+  } catch (err) {
+    console.error('DB init failed:', err);
+    res.status(500).send('Database connection failed: ' + (err.message || ''));
+  }
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -32,15 +47,16 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-initDb().then(() => {
-  if (!isVercel) {
+if (!isVercel) {
+  initDb().then(() => {
+    _ready = true;
     app.listen(PORT, () => {
       console.log(`Blog server running at http://localhost:${PORT}`);
     });
-  }
-}).catch(err => {
-  console.error('Database initialization failed:', err);
-  process.exit(1);
-});
+  }).catch(err => {
+    console.error('Database initialization failed:', err);
+    process.exit(1);
+  });
+}
 
 module.exports = app;

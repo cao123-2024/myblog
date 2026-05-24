@@ -1,9 +1,15 @@
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 
+const connStr = process.env.POSTGRES_URL
+  || process.env.POSTGRES_PRISMA_URL
+  || process.env.DATABASE_URL
+  || '';
+
 const pool = new Pool({
-  connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
+  connectionString: connStr.includes('sslmode') ? connStr : (connStr + (connStr.includes('?') ? '&' : '?') + 'sslmode=require'),
+  ssl: connStr.includes('sslmode') ? undefined : { rejectUnauthorized: false },
+  connectionTimeoutMillis: 10000
 });
 
 let dbReady = false;
@@ -58,7 +64,7 @@ async function initDb() {
         sender_id INTEGER REFERENCES users(id),
         receiver_id INTEGER REFERENCES users(id),
         content TEXT NOT NULL,
-        read INTEGER DEFAULT 0,
+        "read" INTEGER DEFAULT 0,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
       );
       CREATE TABLE IF NOT EXISTS downloads (
@@ -91,6 +97,7 @@ async function initDb() {
     }
 
     dbReady = true;
+    console.log('Database initialized successfully');
   } finally {
     client.release();
   }
