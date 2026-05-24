@@ -139,7 +139,7 @@ window.addEventListener('popstate', function(e){
 
 var App = {
   init: function(){
-    if (Store.token) {
+    if (Store.token && !Store.user) {
       try {
         API.get('/me').then(function(data){
           Store.setUser(data.user);

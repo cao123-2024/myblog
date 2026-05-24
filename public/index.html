@@ -493,7 +493,7 @@
   loginScr.style.display = 'none';
 
   var savedToken = localStorage.getItem('token') || '';
-  var t0 = Date.now();
+  var _apiResolved = false;
 
   function showApp(){
     if(resolved) return;
@@ -501,8 +501,6 @@
     loginScr.style.display = 'none';
     appEl.style.display = '';
     App.init();
-    updateNav();
-    navigate('home');
   }
 
   function showLogin(){
@@ -532,10 +530,7 @@
       Store.adminToken = '';
       API.adminToken = '';
       localStorage.removeItem('adminToken');
-      // Align with entry fade: delay so app appears when entry is done
-      var elapsed = Date.now() - t0;
-      var delay = Math.max(0, 2200 - elapsed);
-      setTimeout(function(){ showApp(); }, delay);
+      _apiResolved = true;
     }).catch(function(){
       localStorage.clear();
       Store.token = '';
@@ -543,7 +538,10 @@
       Store.user = null;
       API.token = '';
       API.adminToken = '';
+      _apiResolved = true;
     });
+  } else {
+    _apiResolved = true;
   }
 
   /* After entry animation: transition to login (or app if token was valid) */
@@ -552,7 +550,10 @@
     entryOvr.style.opacity = '0';
     setTimeout(function(){
       entryOvr.remove();
-      if(!resolved) showLogin();
+      if(!resolved){
+        if(_apiResolved && Store.user) showApp();
+        else showLogin();
+      }
     }, 500);
   }, 2000);
 
@@ -561,8 +562,7 @@
     loginScr.style.display = 'none';
     loginScr.style.webkitMaskImage = '';
     loginScr.style.maskImage = '';
-    updateNav();
-    navigate('home');
+    App.init();
   };
 
   window.showLoginScreen = function(){
