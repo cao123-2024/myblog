@@ -216,7 +216,7 @@ async function handleLoginSubmit(){
         setTimeout(function(){
           document.getElementById('admin-verify-code').focus();
         }, 600);
-        toast('验证码已显示在终端','info');
+        toast('请输入管理员PIN码','info');
         return;
       }catch(e){ toast(e.message,'error'); return; }
     }

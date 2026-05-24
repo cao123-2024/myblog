@@ -10,8 +10,6 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-initDb();
-
 const authRoutes = require('./routes/auth');
 const articleRoutes = require('./routes/articles');
 const commentRoutes = require('./routes/comments');
@@ -34,10 +32,15 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-if (!isVercel) {
-  app.listen(PORT, () => {
-    console.log(`Blog server running at http://localhost:${PORT}`);
-  });
-}
+initDb().then(() => {
+  if (!isVercel) {
+    app.listen(PORT, () => {
+      console.log(`Blog server running at http://localhost:${PORT}`);
+    });
+  }
+}).catch(err => {
+  console.error('Database initialization failed:', err);
+  process.exit(1);
+});
 
 module.exports = app;

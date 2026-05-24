@@ -1,105 +1,99 @@
-const fs = require('fs');
-const path = require('path');
+const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 
-const DATA_DIR = process.env.VERCEL === '1'
-  ? path.join('/tmp', 'data')
-  : path.join(__dirname, 'data');
-const UPLOADS_DIR = process.env.VERCEL === '1'
-  ? path.join('/tmp', 'uploads', 'downloads')
-  : path.join(__dirname, '..', 'uploads', 'downloads');
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+});
 
-const FILES = {
-  users: path.join(DATA_DIR, 'users.json'),
-  articles: path.join(DATA_DIR, 'articles.json'),
-  comments: path.join(DATA_DIR, 'comments.json'),
-  friends: path.join(DATA_DIR, 'friends.json'),
-  messages: path.join(DATA_DIR, 'messages.json'),
-  downloads: path.join(DATA_DIR, 'downloads.json'),
-  verifyCodes: path.join(DATA_DIR, 'verifyCodes.json')
-};
+let dbReady = false;
 
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+async function initDb() {
+  const client = await pool.connect();
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        nickname TEXT DEFAULT '',
+        avatar TEXT DEFAULT '',
+        bg_image TEXT DEFAULT '',
+        bio TEXT DEFAULT '',
+        role TEXT DEFAULT 'user',
+        tag TEXT DEFAULT '',
+        created_by INTEGER,
+        banned_until TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS articles (
+        id SERIAL PRIMARY KEY,
+        author_id INTEGER REFERENCES users(id),
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        summary TEXT DEFAULT '',
+        cover_image TEXT DEFAULT '',
+        images TEXT DEFAULT '[]',
+        download_id INTEGER,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS comments (
+        id SERIAL PRIMARY KEY,
+        article_id INTEGER REFERENCES articles(id),
+        user_id INTEGER REFERENCES users(id),
+        content TEXT NOT NULL,
+        admin_alias TEXT DEFAULT '',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS friends (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
+        friend_id INTEGER REFERENCES users(id),
+        status TEXT DEFAULT 'pending',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS messages (
+        id SERIAL PRIMARY KEY,
+        sender_id INTEGER REFERENCES users(id),
+        receiver_id INTEGER REFERENCES users(id),
+        content TEXT NOT NULL,
+        read INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS downloads (
+        id SERIAL PRIMARY KEY,
+        title TEXT DEFAULT '',
+        description TEXT DEFAULT '',
+        filename TEXT NOT NULL,
+        "originalName" TEXT DEFAULT '',
+        size INTEGER DEFAULT 0,
+        mimetype TEXT DEFAULT '',
+        path TEXT DEFAULT '',
+        download_count INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS verify_codes (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER REFERENCES users(id),
+        code TEXT NOT NULL,
+        used INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
 
-function readJSON(filePath) {
-  try { return JSON.parse(fs.readFileSync(filePath, 'utf8')); }
-  catch { return []; }
-}
+    const admin = await client.query('SELECT id FROM users WHERE username = $1', ['admin']);
+    if (admin.rows.length === 0) {
+      await client.query(
+        'INSERT INTO users (username, password, nickname, bio, role, created_by) VALUES ($1,$2,$3,$4,$5,$6)',
+        ['admin', bcrypt.hashSync('******', 10), '超级管理员', '站点超级管理员', 'admin', null]
+      );
+    }
 
-function writeJSON(filePath, data) {
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
-}
-
-const tables = {};
-
-function makeFilter(predicate) {
-  if (typeof predicate === 'function') return predicate;
-  const keys = Object.keys(predicate);
-  return (record) => keys.every(k => record[k] === predicate[k]);
-}
-
-function table(name) {
-  if (!tables[name]) {
-    const filePath = FILES[name];
-    if (!fs.existsSync(filePath)) writeJSON(filePath, []);
-    tables[name] = {
-      _data: readJSON(filePath),
-      _path: filePath,
-      _save() { writeJSON(this._path, this._data); },
-      _nextId() {
-        const max = this._data.reduce((m, r) => Math.max(m, r.id || 0), 0);
-        return max + 1;
-      },
-      all() { this._data = readJSON(this._path); return this._data; },
-      getById(id) { this.all(); return this._data.find(r => r.id === id) || null; },
-      find(predicate) { this.all(); return this._data.filter(makeFilter(predicate)); },
-      findOne(predicate) { this.all(); return this._data.find(makeFilter(predicate)) || null; },
-      insert(record) {
-        this.all();
-        record.id = this._nextId();
-        this._data.push(record);
-        this._save();
-        return record;
-      },
-      update(id, updates) {
-        this.all();
-        const idx = this._data.findIndex(r => r.id === id);
-        if (idx === -1) return null;
-        this._data[idx] = { ...this._data[idx], ...updates };
-        this._save();
-        return this._data[idx];
-      },
-      delete(id) {
-        this.all();
-        const idx = this._data.findIndex(r => r.id === id);
-        if (idx === -1) return false;
-        this._data.splice(idx, 1);
-        this._save();
-        return true;
-      }
-    };
-  }
-  return tables[name];
-}
-
-function initDb() {
-  const admin = table('users').findOne({ username: 'admin' });
-  if (!admin) {
-    table('users').insert({
-      username: 'admin',
-      password: bcrypt.hashSync('******', 10),
-      nickname: '超级管理员',
-      avatar: '',
-      bg_image: '',
-      bio: '站点超级管理员',
-      role: 'admin',
-      tag: '',
-      created_by: null,
-      banned_until: null,
-      created_at: new Date().toISOString()
-    });
+    dbReady = true;
+  } finally {
+    client.release();
   }
 }
 
-module.exports = { table, initDb };
+module.exports = { pool, initDb, dbReady };

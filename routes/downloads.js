@@ -2,7 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { table } = require('../database/init');
+const { db } = require('../database/db');
 const { auth, adminOnly } = require('../middleware/auth');
 
 const router = express.Router();
@@ -21,25 +21,22 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage, limits: { fileSize: 500 * 1024 * 1024 } });
 
-/* List all downloads */
-router.get('/', (req, res) => {
-  const items = table('downloads').all()
+router.get('/', async (req, res) => {
+  const items = (await db('downloads').all())
     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   res.json({ items });
 });
 
-/* Get single download */
-router.get('/:id', (req, res) => {
-  const item = table('downloads').getById(parseInt(req.params.id));
+router.get('/:id', async (req, res) => {
+  const item = await db('downloads').getById(parseInt(req.params.id));
   if (!item) return res.status(404).json({ error: '文件不存在' });
   res.json({ item });
 });
 
-/* Upload (admin only) */
-router.post('/', auth, adminOnly, upload.single('file'), (req, res) => {
+router.post('/', auth, adminOnly, upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: '请选择文件' });
   const { title, description } = req.body;
-  const item = table('downloads').insert({
+  const item = await db('downloads').insert({
     title: title || req.file.originalname,
     description: description || '',
     filename: req.file.filename,
@@ -53,23 +50,21 @@ router.post('/', auth, adminOnly, upload.single('file'), (req, res) => {
   res.json({ item });
 });
 
-/* Download file */
-router.get('/:id/dl', (req, res) => {
-  const item = table('downloads').getById(parseInt(req.params.id));
+router.get('/:id/dl', async (req, res) => {
+  const item = await db('downloads').getById(parseInt(req.params.id));
   if (!item) return res.status(404).json({ error: '文件不存在' });
-  table('downloads').update(item.id, { download_count: (item.download_count || 0) + 1 });
+  await db('downloads').update(item.id, { download_count: (item.download_count || 0) + 1 });
   const filePath = path.join(UPLOAD_DIR, item.filename);
   if (!fs.existsSync(filePath)) return res.status(404).json({ error: '文件已被删除' });
   res.download(filePath, item.originalName);
 });
 
-/* Delete (admin only) */
-router.delete('/:id', auth, adminOnly, (req, res) => {
-  const item = table('downloads').getById(parseInt(req.params.id));
+router.delete('/:id', auth, adminOnly, async (req, res) => {
+  const item = await db('downloads').getById(parseInt(req.params.id));
   if (!item) return res.status(404).json({ error: '文件不存在' });
   const filePath = path.join(UPLOAD_DIR, item.filename);
   if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-  table('downloads').delete(item.id);
+  await db('downloads').delete(item.id);
   res.json({ message: '已删除' });
 });
 
