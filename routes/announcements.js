@@ -15,12 +15,16 @@ router.post('/', auth, superAdminOnly, async (req, res) => {
   if (!title || !title.trim()) return res.status(400).json({ error: '标题不能为空' });
   if (!content || !content.trim()) return res.status(400).json({ error: '内容不能为空' });
 
-  const ann = await db('announcements').insert({
-    title: title.trim(),
-    content: content.trim(),
-    created_at: new Date().toISOString()
-  });
-  res.json({ announcement: ann });
+  try {
+    const ann = await db('announcements').insert({
+      title: title.trim(),
+      content: content.trim(),
+      created_at: new Date().toISOString()
+    });
+    res.json({ announcement: ann });
+  } catch (e) {
+    res.status(500).json({ error: '公告发布失败，请在 Supabase SQL Editor 中执行建表语句: CREATE TABLE IF NOT EXISTS announcements (id SERIAL PRIMARY KEY, title TEXT NOT NULL, content TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW());' });
+  }
 });
 
 router.put('/:id', auth, superAdminOnly, async (req, res) => {

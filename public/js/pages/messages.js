@@ -1,4 +1,6 @@
 let currentChatId = null;
+let currentChatIsFriend = false;
+let currentChatSentCount = 0;
 
 function render_messages() {
   if (!Store.user) { navigate('login'); return document.createElement('div'); }
@@ -26,11 +28,12 @@ function render_messages() {
             <div class="comment-avatar" id="chat-other-avatar" style="width:36px;height:36px"></div>
             <span class="font-semibold" id="chat-other-name"></span>
           </div>
+          <div id="chat-limit-banner" class="hidden"></div>
           <div class="chat-messages" id="chat-messages"></div>
           <div style="border-top:1px solid var(--border-subtle);padding:12px">
             <div class="chat-input-row">
-              <input class="input input-glass" id="chat-msg-input" placeholder="输入消息..." onkeydown="if(event.key==='Enter')sendChatMsg()">
-              <button class="btn btn-primary" onclick="sendChatMsg()">发送</button>
+              <input class="input input-glass" id="chat-msg-input" placeholder="输入消息..." onkeydown="if(event.key==='Enter')sendChatMsg()" disabled style="opacity:0.5">
+              <button class="btn btn-primary" id="chat-send-btn" onclick="sendChatMsg()" disabled style="opacity:0.5">发送</button>
             </div>
           </div>
         </div>
@@ -129,10 +132,68 @@ async function openChatWith(userId) {
     const av = data.other?.avatar || '';
     $('#chat-other-avatar').style.backgroundImage = av ? `url(${av})` : 'none';
     renderChatMessages(data.messages || []);
+
+    currentChatIsFriend = !!data.isFriend;
+    currentChatSentCount = data.sentCount || 0;
+
+    updateChatBanner();
+    updateChatInputState();
   } catch (e) { toast(e.message, 'error'); }
 
   if (chatPollInterval) clearInterval(chatPollInterval);
   chatPollInterval = setInterval(pollMessages, 3000);
+}
+
+function updateChatInputState() {
+  var input = $('#chat-msg-input');
+  var btn = $('#chat-send-btn');
+  if (!input || !btn) return;
+  var blocked = !currentChatIsFriend && currentChatSentCount >= 1 && !Store.isAdmin();
+  if (blocked) {
+    input.disabled = true;
+    input.style.opacity = '0.5';
+    input.placeholder = '请先添加好友...';
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+  } else {
+    input.disabled = false;
+    input.style.opacity = '1';
+    input.placeholder = '输入消息...';
+    btn.disabled = false;
+    btn.style.opacity = '1';
+  }
+}
+
+function updateChatBanner() {
+  var banner = $('#chat-limit-banner');
+  if (!banner) return;
+  if (!currentChatIsFriend && currentChatSentCount >= 1 && !Store.isAdmin()) {
+    banner.className = 'chat-limit-banner';
+    banner.innerHTML = ''
+      + '<div class="chat-limit-banner-text">'
+      + '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'
+      + '<span>目前对方不是你好友，需添加好友后才能无限制发送消息，目前只能发送一条。</span>'
+      + '</div>'
+      + '<div class="chat-limit-banner-actions">'
+      + '<button class="btn btn-primary btn-sm" onclick="addFriendFromChat(' + currentChatId + ')">添加好友</button>'
+      + '<button class="btn btn-glass btn-sm btn-icon" onclick="dismissChatBanner()" title="关闭">&times;</button>'
+      + '</div>';
+  } else {
+    banner.className = 'hidden';
+  }
+}
+
+function dismissChatBanner() {
+  var banner = $('#chat-limit-banner');
+  if (banner) banner.className = 'hidden';
+}
+
+async function addFriendFromChat(userId) {
+  try {
+    await API.post('/friends/request/' + userId);
+    toast('好友申请已发送', 'success');
+    dismissChatBanner();
+  } catch (e) { toast(e.message, 'error'); }
 }
 
 function renderChatMessages(msgs) {
@@ -152,6 +213,12 @@ async function pollMessages() {
   try {
     const data = await API.get('/messages/with/' + currentChatId);
     renderChatMessages(data.messages || []);
+    if (currentChatIsFriend !== !!data.isFriend || currentChatSentCount !== (data.sentCount || 0)) {
+      currentChatIsFriend = !!data.isFriend;
+      currentChatSentCount = data.sentCount || 0;
+      updateChatBanner();
+      updateChatInputState();
+    }
   } catch (e) { /* silently fail */ }
 }
 
@@ -163,8 +230,20 @@ async function sendChatMsg() {
   try {
     await API.post('/messages/send/' + currentChatId, { content });
     input.value = '';
+    currentChatSentCount++;
+    updateChatBanner();
+    updateChatInputState();
     await pollMessages();
-  } catch (e) { toast(e.message, 'error'); }
+  } catch (e) {
+    try {
+      var data = await API.get('/messages/with/' + currentChatId);
+      currentChatIsFriend = !!data.isFriend;
+      currentChatSentCount = data.sentCount || 0;
+      updateChatBanner();
+      updateChatInputState();
+    } catch(e2) {}
+    toast(e.message, 'error');
+  }
 }
 
 function showNewChatModal(){

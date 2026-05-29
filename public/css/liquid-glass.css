@@ -570,5 +570,34 @@ body::before {
 /* Message badge */
 #msg-badge { pointer-events: none; }
 
+/* ===== Chat limit banner (non-friend warning) ===== */
+.chat-limit-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  margin: 0;
+  background: rgba(234, 179, 8, 0.08);
+  border-bottom: 1px solid rgba(234, 179, 8, 0.2);
+  flex-wrap: wrap;
+}
+.chat-limit-banner-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: #eab308;
+  line-height: 1.5;
+  flex: 1;
+  min-width: 200px;
+}
+.chat-limit-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 /* Red color var */
 :root { --red: #ef4444; }

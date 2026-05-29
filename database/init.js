@@ -69,6 +69,16 @@ async function sbInitDb() {
       nickname: '超级管理员', bio: '站点超级管理员', role: 'admin', created_at: new Date().toISOString()
     });
   }
+
+  try {
+    await supabaseApi('GET', '/rest/v1/announcements?select=id&limit=1');
+  } catch (e) {
+    console.error('========================================');
+    console.error('[DB] announcements 表不存在！请在 Supabase SQL Editor 中执行:');
+    console.error('CREATE TABLE IF NOT EXISTS announcements (id SERIAL PRIMARY KEY, title TEXT NOT NULL, content TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW());');
+    console.error('========================================');
+  }
+
   supabaseReady = true;
 }
 

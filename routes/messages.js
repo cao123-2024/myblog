@@ -4,6 +4,17 @@ const { auth, adminOnly } = require('../middleware/auth');
 
 const router = express.Router();
 
+const isAdminRole = (user) => user && (user.role === 'admin' || user.role === 'semi_admin');
+
+async function isFriend(aId, bId) {
+  const allFriends = await db('friends').all();
+  return allFriends.some(f =>
+    f.status === 'accepted' &&
+    ((f.user_id === aId && f.friend_id === bId) ||
+     (f.user_id === bId && f.friend_id === aId))
+  );
+}
+
 router.get('/unread-count', auth, async (req, res) => {
   const allMsgs = await db('messages').all();
   const count = allMsgs.filter(m =>
@@ -58,13 +69,16 @@ router.get('/with/:userId', auth, async (req, res) => {
   }
 
   const other = await db('users').getById(otherId);
+  const friend = await isFriend(req.user.id, otherId);
+  const sentCount = msgs.filter(m => m.sender_id === req.user.id).length;
+
   res.json({
     messages: msgs,
-    other: other ? { id: other.id, username: other.username, nickname: other.nickname, avatar: other.avatar } : null
+    other: other ? { id: other.id, username: other.username, nickname: other.nickname, avatar: other.avatar } : null,
+    isFriend: friend,
+    sentCount: sentCount
   });
 });
-
-const isAdminRole = (user) => user && (user.role === 'admin' || user.role === 'semi_admin');
 
 router.post('/send/:userId', auth, async (req, res) => {
   const receiverId = parseInt(req.params.userId);
@@ -75,22 +89,20 @@ router.post('/send/:userId', auth, async (req, res) => {
   if (!receiver) return res.status(404).json({ error: '用户不存在' });
   if (receiver.id === req.user.id) return res.status(400).json({ error: '不能给自己发消息' });
 
-  /* Non-admin users can only message friends or admins who message them first */
   if (!isAdminRole(req.user) && !isAdminRole(receiver)) {
-    const allFriends = await db('friends').all();
-    const isFriend = allFriends.some(f =>
-      f.status === 'accepted' &&
-      ((f.user_id === req.user.id && f.friend_id === receiverId) ||
-       (f.user_id === receiverId && f.friend_id === req.user.id))
-    );
-    if (!isFriend) {
-      /* Check if they have an existing conversation (admin messaged them first) */
+    const friend = await isFriend(req.user.id, receiverId);
+    if (!friend) {
       const allMsgs = await db('messages').all();
-      const hasConv = allMsgs.some(m =>
-        (m.sender_id === req.user.id && m.receiver_id === receiverId) ||
-        (m.sender_id === receiverId && m.receiver_id === req.user.id)
-      );
-      if (!hasConv) return res.status(403).json({ error: '需要先添加好友才能发送消息' });
+      const sentCount = allMsgs.filter(m =>
+        m.sender_id === req.user.id && m.receiver_id === receiverId
+      ).length;
+      if (sentCount >= 1) {
+        return res.status(403).json({
+          error: '你已发送过一条消息，请先添加好友后才能继续发送',
+          code: 'NOT_FRIEND_LIMIT',
+          canAddFriend: true
+        });
+      }
     }
   }
 
