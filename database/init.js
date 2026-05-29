@@ -46,6 +46,15 @@ function jsonInitDb() {
 const supabaseUrl = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 let supabaseReady = false;
+let _sbClient = null;
+
+function getSupabaseClient() {
+  if (!_sbClient) {
+    const { createClient } = require('@supabase/supabase-js');
+    _sbClient = createClient(supabaseUrl, supabaseKey);
+  }
+  return _sbClient;
+}
 
 function supabaseApi(method, path, body) {
   const opts = {
@@ -61,6 +70,44 @@ function supabaseApi(method, path, body) {
   });
 }
 
+async function createAnnouncementsTable() {
+  try {
+    const sb = getSupabaseClient();
+    const { error } = await sb.sql`CREATE TABLE IF NOT EXISTS announcements (id SERIAL PRIMARY KEY, title TEXT NOT NULL, content TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW())`;
+    if (!error) {
+      console.log('[DB] announcements table auto-created via supabase-js');
+      return;
+    }
+    console.error('[DB] supabase-js sql error:', error);
+  } catch(e) {
+    console.error('[DB] supabase-js sql failed:', e.message);
+  }
+
+  try {
+    const resp = await fetch(supabaseUrl + '/rest/v1/', {
+      method: 'POST',
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': 'Bearer ' + supabaseKey,
+        'Content-Type': 'application/sql',
+        'Prefer': 'return=minimal'
+      },
+      body: 'CREATE TABLE IF NOT EXISTS announcements (id SERIAL PRIMARY KEY, title TEXT NOT NULL, content TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW())'
+    });
+    if (resp.ok) {
+      console.log('[DB] announcements table auto-created via SQL API');
+      return;
+    }
+  } catch(e) {
+    console.error('[DB] SQL API failed:', e.message);
+  }
+
+  console.error('========================================');
+  console.error('[DB] announcements 表创建失败！请在 Supabase SQL Editor 执行:');
+  console.error('CREATE TABLE IF NOT EXISTS announcements (id SERIAL PRIMARY KEY, title TEXT NOT NULL, content TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW());');
+  console.error('========================================');
+}
+
 async function sbInitDb() {
   let d = await supabaseApi('GET', '/rest/v1/users?select=id&username=eq.admin&limit=1');
   if (!d || d.length === 0) {
@@ -70,14 +117,7 @@ async function sbInitDb() {
     });
   }
 
-  try {
-    await supabaseApi('GET', '/rest/v1/announcements?select=id&limit=1');
-  } catch (e) {
-    console.error('========================================');
-    console.error('[DB] announcements 表不存在！请在 Supabase SQL Editor 中执行:');
-    console.error('CREATE TABLE IF NOT EXISTS announcements (id SERIAL PRIMARY KEY, title TEXT NOT NULL, content TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW());');
-    console.error('========================================');
-  }
+  await createAnnouncementsTable();
 
   supabaseReady = true;
 }
