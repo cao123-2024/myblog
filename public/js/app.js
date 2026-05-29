@@ -139,6 +139,7 @@ window.addEventListener('popstate', function(e){
 
 var App = {
   init: function(){
+    updateNav();
     if (Store.token && !Store.user) {
       try {
         API.get('/me').then(function(data){
