@@ -154,8 +154,77 @@ var App = {
     }
     var page = location.hash.slice(1) || 'home';
     navigate(page);
+
+    /* Start polling for unread messages & announcements */
+    if (Store.token) {
+      pollUnreadCount();
+      setInterval(pollUnreadCount, 15000);
+      checkAnnouncements();
+    }
   }
 };
+
+async function pollUnreadCount() {
+  if (!Store.token) return;
+  try {
+    var d = await API.get('/messages/unread-count');
+    var badge = document.getElementById('msg-badge');
+    if (!badge) return;
+    var n = d.count || 0;
+    if (n > 0) {
+      badge.style.display = 'flex';
+      badge.textContent = n > 99 ? '99+' : n;
+    } else {
+      badge.style.display = 'none';
+    }
+  } catch(e) {}
+}
+
+var _lastAnnouncementId = parseInt(localStorage.getItem('lastAnnId') || '0');
+
+async function checkAnnouncements() {
+  if (!Store.token) return;
+  try {
+    var d = await API.get('/announcements');
+    var list = d.announcements || [];
+    if (list.length === 0) return;
+    var latest = list[0];
+    if (latest.id > _lastAnnouncementId) {
+      showAnnouncementPopup(latest);
+    }
+  } catch(e) {}
+}
+
+function showAnnouncementPopup(ann) {
+  var dt = new Date(ann.created_at);
+  var dateStr = dt.getFullYear() + '-' +
+    String(dt.getMonth()+1).padStart(2,'0') + '-' +
+    String(dt.getDate()).padStart(2,'0') + ' ' +
+    String(dt.getHours()).padStart(2,'0') + ':' +
+    String(dt.getMinutes()).padStart(2,'0');
+  var content = document.getElementById('ann-content');
+  content.innerHTML = ''
+    + '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px">'
+    + '<h2 style="font-size:1.3rem;font-weight:700;margin:0">' + escapeHtml(ann.title) + '</h2>'
+    + '<button onclick="closeAnnouncement()" style="background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:1.3rem;line-height:1;padding:0 0 0 12px">&times;</button>'
+    + '</div>'
+    + '<p style="font-weight:700;color:var(--blue);margin-bottom:16px;font-size:0.95rem">' + dateStr + '</p>'
+    + '<div style="white-space:pre-wrap;line-height:1.8;color:var(--text-primary);margin-bottom:20px">' + escapeHtml(ann.content) + '</div>'
+    + '<button class="btn btn-primary w-full" onclick="confirmAnnouncement(' + ann.id + ')">确 认</button>';
+  document.getElementById('ann-overlay').classList.add('active');
+  _lastAnnouncementId = ann.id;
+}
+
+function confirmAnnouncement(id) {
+  localStorage.setItem('lastAnnId', id);
+  _lastAnnouncementId = id;
+  closeAnnouncement();
+}
+
+function closeAnnouncement(e) {
+  if (e && e.target !== document.getElementById('ann-overlay')) return;
+  document.getElementById('ann-overlay').classList.remove('active');
+}
 
 function escapeHtml(str) {
   if (!str) return '';

@@ -4,6 +4,14 @@ const { auth, adminOnly } = require('../middleware/auth');
 
 const router = express.Router();
 
+router.get('/unread-count', auth, async (req, res) => {
+  const allMsgs = await db('messages').all();
+  const count = allMsgs.filter(m =>
+    m.receiver_id === req.user.id && !m.read
+  ).length;
+  res.json({ count });
+});
+
 router.get('/conversations', auth, async (req, res) => {
   const allMsgs = await db('messages').all();
   const myMsgs = allMsgs.filter(m =>
@@ -56,6 +64,8 @@ router.get('/with/:userId', auth, async (req, res) => {
   });
 });
 
+const isAdminRole = (user) => user && (user.role === 'admin' || user.role === 'semi_admin');
+
 router.post('/send/:userId', auth, async (req, res) => {
   const receiverId = parseInt(req.params.userId);
   const { content } = req.body;
@@ -63,6 +73,26 @@ router.post('/send/:userId', auth, async (req, res) => {
 
   const receiver = await db('users').getById(receiverId);
   if (!receiver) return res.status(404).json({ error: '用户不存在' });
+  if (receiver.id === req.user.id) return res.status(400).json({ error: '不能给自己发消息' });
+
+  /* Non-admin users can only message friends or admins who message them first */
+  if (!isAdminRole(req.user) && !isAdminRole(receiver)) {
+    const allFriends = await db('friends').all();
+    const isFriend = allFriends.some(f =>
+      f.status === 'accepted' &&
+      ((f.user_id === req.user.id && f.friend_id === receiverId) ||
+       (f.user_id === receiverId && f.friend_id === req.user.id))
+    );
+    if (!isFriend) {
+      /* Check if they have an existing conversation (admin messaged them first) */
+      const allMsgs = await db('messages').all();
+      const hasConv = allMsgs.some(m =>
+        (m.sender_id === req.user.id && m.receiver_id === receiverId) ||
+        (m.sender_id === receiverId && m.receiver_id === req.user.id)
+      );
+      if (!hasConv) return res.status(403).json({ error: '需要先添加好友才能发送消息' });
+    }
+  }
 
   const msg = await db('messages').insert({
     sender_id: req.user.id,
@@ -84,7 +114,7 @@ router.post('/broadcast', auth, adminOnly, async (req, res) => {
     const receiver = await db('users').getById(parseInt(uid));
     if (!receiver) continue;
     if (receiver.id === req.user.id) continue;
-    const msg = await db('messages').insert({
+    await db('messages').insert({
       sender_id: req.user.id,
       receiver_id: receiver.id,
       content: content.trim(),

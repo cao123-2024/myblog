@@ -38,6 +38,7 @@ const userRoutes = require('./routes/users');
 const adminRoutes = require('./routes/admin');
 const messageRoutes = require('./routes/messages');
 const downloadRoutes = require('./routes/downloads');
+const announcementRoutes = require('./routes/announcements');
 
 app.use('/api', authRoutes);
 app.use('/api/articles', articleRoutes);
@@ -47,6 +48,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/downloads', downloadRoutes);
+app.use('/api/announcements', announcementRoutes);
 
 app.get('*', function(req, res){
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
