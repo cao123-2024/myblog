@@ -277,6 +277,10 @@ function triggerBloomAndEnter(token, user, adminToken){
   var loginScr = document.getElementById('login-screen');
   if(!loginScr) return;
 
+  /* Remove CSS class that hides the app */
+  var appEl = document.getElementById('app');
+  if(appEl) { appEl.classList.remove('hidden-init'); appEl.style.display = ''; }
+
   /* Disable pointer events on login card during animation */
   var swiper = document.getElementById('login-swiper');
   if(swiper) swiper.style.pointerEvents = 'none';
