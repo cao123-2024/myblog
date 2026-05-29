@@ -168,6 +168,10 @@ async function sendChatMsg() {
 }
 
 function showNewChatModal(){
+  if(Store.isAdminVerified()){
+    showAdminBroadcastModal();
+    return;
+  }
   showInputModal('发起新对话','输入对方的用户名','', async function(val){
     if(!val.trim()) throw new Error('请输入用户名');
     var data = await API.get('/users/search?q='+encodeURIComponent(val.trim()));
@@ -176,4 +180,128 @@ function showNewChatModal(){
     if(found.id === Store.user.id) throw new Error('不能和自己聊天');
     openChatWith(found.id);
   });
+}
+
+async function showAdminBroadcastModal(){
+  var html = ''
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">'
+    + '<h3 style="font-size:1.1rem;font-weight:600">管理员群发消息</h3>'
+    + '</div>'
+    + '<input class="input input-glass" id="ab-search" placeholder="搜索用户名..." style="margin-bottom:12px" oninput="adminBroadcastFilter()">'
+    + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">'
+    + '<button class="btn btn-glass btn-sm" onclick="adminBroadcastSelectAll()">全选</button>'
+    + '<button class="btn btn-glass btn-sm" onclick="adminBroadcastDeselectAll()">取消全选</button>'
+    + '<button class="btn btn-glass btn-sm" onclick="adminBroadcastInvert()">反选</button>'
+    + '<span class="text-sm text-secondary" id="ab-count">已选 0 个用户</span>'
+    + '</div>'
+    + '<div id="ab-user-list" style="max-height:260px;overflow-y:auto;border:1px solid var(--border-glass);border-radius:var(--radius-sm);margin-bottom:12px;background:var(--bg-glass)">'
+    + '<div class="text-center text-secondary p-4">加载中...</div>'
+    + '</div>'
+    + '<textarea class="input input-glass textarea" id="ab-content" rows="3" placeholder="输入群发消息内容..." style="margin-bottom:12px"></textarea>'
+    + '<button class="btn btn-primary w-full" id="ab-send-btn" onclick="adminBroadcastSend()">发送群发消息</button>';
+
+  showModal('管理员群发', html, null, null);
+  setupAdminBroadcast();
+}
+
+var _abAllUsers = [];
+var _abSelected = {};
+
+async function setupAdminBroadcast(){
+  try{
+    var data = await API.get('/admin/users');
+    _abAllUsers = data.users || [];
+    _abSelected = {};
+    adminBroadcastRender();
+  }catch(e){
+    document.getElementById('ab-user-list').innerHTML = '<div class="text-center text-red p-4">加载失败: '+e.message+'</div>';
+  }
+}
+
+function adminBroadcastRender(){
+  var list = document.getElementById('ab-user-list');
+  var count = document.getElementById('ab-count');
+  if(!list) return;
+
+  var q = (document.getElementById('ab-search')?.value || '').trim().toLowerCase();
+  var filtered = _abAllUsers;
+  if(q){
+    filtered = _abAllUsers.filter(function(u){
+      return (u.username||'').toLowerCase().includes(q) || (u.nickname||'').toLowerCase().includes(q);
+    });
+  }
+
+  var selCount = Object.values(_abSelected).filter(Boolean).length;
+  if(count) count.textContent = '已选 ' + selCount + ' 个用户';
+
+  if(filtered.length === 0){
+    list.innerHTML = '<div class="text-center text-secondary p-4">无匹配用户</div>';
+    return;
+  }
+
+  var html = '';
+  for(var i=0; i<filtered.length; i++){
+    var u = filtered[i];
+    var checked = !!_abSelected[u.id];
+    var av = u.avatar ? 'style="background-image:url('+escapeHtml(u.avatar)+')"' : '';
+    var tag = u.tag ? '<span class="text-xs text-tertiary">['+escapeHtml(u.tag)+']</span>' : '';
+    var roleBadge = '';
+    if(u.role==='admin' && !u.created_by) roleBadge = '<span class="text-xs" style="color:var(--purple, #a855f7)">超管</span>';
+    else if(u.role==='admin') roleBadge = '<span class="text-xs" style="color:var(--blue)">管理员</span>';
+    else if(u.role==='semi_admin') roleBadge = '<span class="text-xs" style="color:var(--cyan, #06b6d4)">半管理</span>';
+    html += '<label style="display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;transition:background 0.15s;border-bottom:1px solid var(--border-subtle)" onmouseenter="this.style.background=\'var(--bg-glass-hover)\'" onmouseleave="this.style.background=\'transparent\'">'
+      + '<input type="checkbox" '+(checked?'checked':'')+' onchange="adminBroadcastToggle('+u.id+',this.checked)" style="width:16px;height:16px;accent-color:var(--blue)">'
+      + '<div class="comment-avatar" '+av+' style="width:32px;height:32px;flex-shrink:0"></div>'
+      + '<span class="text-sm font-medium">'+escapeHtml(u.nickname||u.username)+'</span>'
+      + '<span class="text-xs text-tertiary">@'+escapeHtml(u.username)+'</span>'
+      + tag + roleBadge
+      + '</label>';
+  }
+  list.innerHTML = html;
+}
+
+function adminBroadcastToggle(id, on){
+  _abSelected[id] = on;
+  adminBroadcastRender();
+}
+
+function adminBroadcastSelectAll(){
+  for(var i=0; i<_abAllUsers.length; i++){
+    _abSelected[_abAllUsers[i].id] = true;
+  }
+  adminBroadcastRender();
+}
+
+function adminBroadcastDeselectAll(){
+  _abSelected = {};
+  adminBroadcastRender();
+}
+
+function adminBroadcastInvert(){
+  for(var i=0; i<_abAllUsers.length; i++){
+    var id = _abAllUsers[i].id;
+    _abSelected[id] = !_abSelected[id];
+  }
+  adminBroadcastRender();
+}
+
+function adminBroadcastFilter(){
+  adminBroadcastRender();
+}
+
+async function adminBroadcastSend(){
+  var ids = Object.keys(_abSelected).filter(function(k){ return _abSelected[k]; }).map(Number);
+  if(ids.length === 0){ toast('请至少选择一个用户','error'); return; }
+  var content = (document.getElementById('ab-content')?.value || '').trim();
+  if(!content){ toast('消息内容不能为空','error'); return; }
+  var btn = document.getElementById('ab-send-btn');
+  if(btn){ btn.disabled = true; btn.textContent = '发送中...'; }
+  try{
+    var result = await API.post('/messages/broadcast', { user_ids: ids, content: content });
+    toast('已成功发送给 ' + result.sent + ' 个用户','success');
+    closeModal();
+  }catch(e){
+    toast(e.message,'error');
+    if(btn){ btn.disabled = false; btn.textContent = '发送群发消息'; }
+  }
 }

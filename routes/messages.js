@@ -1,6 +1,6 @@
 const express = require('express');
 const { db } = require('../database/db');
-const { auth } = require('../middleware/auth');
+const { auth, adminOnly } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -72,6 +72,29 @@ router.post('/send/:userId', auth, async (req, res) => {
     created_at: new Date().toISOString()
   });
   res.json({ message: msg });
+});
+
+router.post('/broadcast', auth, adminOnly, async (req, res) => {
+  const { user_ids, content } = req.body;
+  if (!content || !content.trim()) return res.status(400).json({ error: '消息内容不能为空' });
+  if (!Array.isArray(user_ids) || user_ids.length === 0) return res.status(400).json({ error: '请选择至少一个用户' });
+
+  const results = [];
+  for (const uid of user_ids) {
+    const receiver = await db('users').getById(parseInt(uid));
+    if (!receiver) continue;
+    if (receiver.id === req.user.id) continue;
+    const msg = await db('messages').insert({
+      sender_id: req.user.id,
+      receiver_id: receiver.id,
+      content: content.trim(),
+      read: 0,
+      created_at: new Date().toISOString()
+    });
+    results.push({ id: receiver.id, username: receiver.username });
+  }
+
+  res.json({ sent: results.length, users: results });
 });
 
 module.exports = router;
