@@ -6,11 +6,26 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const isVercel = process.env.VERCEL === '1';
 
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
+app.use(express.urlencoded({ limit: '5mb', extended: true }));
 
 /* Serve static files IMMEDIATELY — no DB needed */
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+/* Global error handler for multer / body-too-large */
+app.use(function(err, req, res, next) {
+  if (err && err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(413).json({ error: '文件太大，请压缩后再上传（最大 500MB）' });
+  }
+  if (err && err.type === 'entity.too.large') {
+    return res.status(413).json({ error: '请求体太大，Vercel 限制 4.5MB，请压缩图片或使用较小文件' });
+  }
+  if (err && err.status === 413) {
+    return res.status(413).json({ error: '文件太大（Vercel 限制 4.5MB），请压缩后再上传' });
+  }
+  next(err);
+});
 
 /* Kick off DB connect in background */
 let _ready = false;
