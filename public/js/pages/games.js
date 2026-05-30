@@ -97,7 +97,38 @@ function init_minesweeper() {
   function reset(){board=Array.from({length:R},function(){return Array(C).fill(0)});revealed=Array.from({length:R},function(){return Array(C).fill(false)});flagged=Array.from({length:R},function(){return Array(C).fill(false)});var placed=0;while(placed<M){var r=Math.floor(Math.random()*R),c=Math.floor(Math.random()*C);if(board[r][c]!==-1){board[r][c]=-1;placed++}}for(var r=0;r<R;r++)for(var c=0;c<C;c++){if(board[r][c]===-1)continue;var cnt=0;for(var dr=-1;dr<=1;dr++)for(var dc=-1;dc<=1;dc++){var nr=r+dr,nc=c+dc;if(nr>=0&&nr<R&&nc>=0&&nc<C&&board[nr][nc]===-1)cnt++}board[r][c]=cnt}}
   function reveal(r,c){if(r<0||r>=R||c<0||c>=C||revealed[r][c]||flagged[r][c])return;revealed[r][c]=true;if(board[r][c]===-1){draw(true);return}if(board[r][c]===0){for(var dr=-1;dr<=1;dr++)for(var dc=-1;dc<=1;dc++)reveal(r+dr,c+dc)}}
   function checkWin(){for(var r=0;r<R;r++)for(var c=0;c<C;c++)if(board[r][c]!==-1&&!revealed[r][c])return false;return true}
-  function draw(dead){var h='<div style="display:inline-grid;grid-template-columns:repeat('+C+',34px);gap:2px">';for(var r=0;r<R;r++)for(var c=0;c<C;c++){var cls='gcell',txt='',bg='';if(revealed[r][c]){if(board[r][c]===-1){bg='#CF222E';txt='💣'}else{txt=board[r][c]||'';bg='rgba(255,255,255,0.06)';var cols=['','#0078D4','#1A7F37','#CF222E','#8250DF','#BF7B00','#00C6FF','#333','#888'];if(board[r][c])cls+='" style="color:'+cols[board[r][c]]}}}else if(flagged[r][c]){txt='🚩';bg='rgba(255,255,255,0.04)'}if(dead&&board[r][c]===-1&&!flagged[r][c]){txt='💣';bg='rgba(255,255,255,0.06)'}h+='<div class="'+cls+'" style="width:34px;height:34px;cursor:pointer;font-size:0.85rem;background:'+(bg||'rgba(255,255,255,0.03)')+'" onclick="msClick('+r+','+c+')" oncontextmenu="msFlag('+r+','+c+');return false">'+txt+'</div>'}h+='</div>';document.getElementById('ms-grid').innerHTML=h}
+  function draw(dead){
+    var h = '<div style="display:inline-grid;grid-template-columns:repeat(' + C + ',34px);gap:2px">';
+    for (var r = 0; r < R; r++) {
+      for (var c = 0; c < C; c++) {
+        var cls = 'gcell', txt = '', bg = '';
+        if (revealed[r][c]) {
+          if (board[r][c] === -1) {
+            bg = '#CF222E';
+            txt = '💣';
+          } else {
+            txt = board[r][c] || '';
+            bg = 'rgba(255,255,255,0.06)';
+            var cols = ['', '#0078D4', '#1A7F37', '#CF222E', '#8250DF', '#BF7B00', '#00C6FF', '#333', '#888'];
+            if (board[r][c]) {
+              cls += '" style="color:' + cols[board[r][c]];
+            }
+          }
+        } else if (flagged[r][c]) {
+          txt = '🚩';
+          bg = 'rgba(255,255,255,0.04)';
+        }
+        if (dead && board[r][c] === -1 && !flagged[r][c]) {
+          txt = '💣';
+          bg = 'rgba(255,255,255,0.06)';
+        }
+        var style = 'width:34px;height:34px;cursor:pointer;font-size:0.85rem;background:' + (bg || 'rgba(255,255,255,0.03)');
+        h += '<div class="' + cls + '" style="' + style + '" onclick="msClick(' + r + ',' + c + ')" oncontextmenu="msFlag(' + r + ',' + c + ');return false">' + txt + '</div>';
+      }
+    }
+    h += '</div>';
+    document.getElementById('ms-grid').innerHTML = h;
+  }
   reset();window.msClick=function(r,c){if(board[r][c]===-1){revealed[r][c]=true;draw(true);setTimeout(function(){toast('踩雷了!','error')},100);return}reveal(r,c);draw(false);if(checkWin()){toast('你赢了!','success');revealed=Array.from({length:R},function(){return Array(C).fill(true)});draw(false)}};
   window.msFlag=function(r,c){if(!revealed[r][c]){flagged[r][c]=!flagged[r][c];draw(false)}};
   var el=document.getElementById('game-container');
