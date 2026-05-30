@@ -408,18 +408,40 @@ function startGomokuRound(diff) {
   /* Minimax with Alpha-Beta — threat-aware */
   var MAX_D = (diff === 'master' ? 4 : 2);
 
-  /* Threat score for candidate sorting */
+  /* Threat score for candidate sorting — GAP-AWARE */
   function threatScore(x, y) {
     var sc = 0;
     for (var d = 0; d < 4; d++) {
-      var myA = 0, myB = 0, yrA = 0, yrB = 0;
-      for (var s = 1; s <= 4; s++) { var nx = x + DIRS[d][0] * s, ny = y + DIRS[d][1] * s; if (nx >= 0 && nx < SZ && ny >= 0 && ny < SZ && board[ny][nx] === 2) myA++; else break; }
-      for (var s = 1; s <= 4; s++) { var nx = x - DIRS[d][0] * s, ny = y - DIRS[d][1] * s; if (nx >= 0 && nx < SZ && ny >= 0 && ny < SZ && board[ny][nx] === 2) myB++; else break; }
-      for (var s = 1; s <= 4; s++) { var nx = x + DIRS[d][0] * s, ny = y + DIRS[d][1] * s; if (nx >= 0 && nx < SZ && ny >= 0 && ny < SZ && board[ny][nx] === 1) yrA++; else break; }
-      for (var s = 1; s <= 4; s++) { var nx = x - DIRS[d][0] * s, ny = y - DIRS[d][1] * s; if (nx >= 0 && nx < SZ && ny >= 0 && ny < SZ && board[ny][nx] === 1) yrB++; else break; }
-      if (myA + myB >= 4 || yrA + yrB >= 4) return 1000000;
-      if (yrA + yrB >= 3) return 500000;
-      sc += (myA + myB) * 50 + (yrA + yrB) * 30;
+      var dx = DIRS[d][0], dy = DIRS[d][1];
+      /* Build a 9-cell window: candidates position at index 4 */
+      var w = [0,0,0,0,0,0,0,0,0];
+      for (var s = -4; s <= 4; s++) {
+        var nx = x + dx * s, ny = y + dy * s;
+        w[s + 4] = (nx >= 0 && nx < SZ && ny >= 0 && ny < SZ) ? board[ny][nx] : -1;
+      }
+      /* Consecutive counting from center */
+      var meL = 0, meR = 0, yrL = 0, yrR = 0;
+      for (var s = 1; s <= 4; s++) { if (w[4 + s] === 2) meR++; else break; }
+      for (var s = 1; s <= 4; s++) { if (w[4 - s] === 2) meL++; else break; }
+      for (var s = 1; s <= 4; s++) { if (w[4 + s] === 1) yrR++; else break; }
+      for (var s = 1; s <= 4; s++) { if (w[4 - s] === 1) yrL++; else break; }
+      sc += (meL + meR) * 50 + (yrL + yrR) * 30;
+
+      /* SWEEP: 5-cell sliding windows — catches X_X_X, XX_XX, etc. */
+      for (var start = 0; start <= 4; start++) {
+        var pCnt = 0, aCnt = 0, emptySlots = 0;
+        for (var i = 0; i < 5; i++) {
+          if (w[start + i] === 1) pCnt++;
+          else if (w[start + i] === 2) aCnt++;
+          else if (w[start + i] === 0) emptySlots++;
+        }
+        if (pCnt >= 4) return 1000001;
+        if (pCnt === 3 && aCnt === 0) sc += 80000;
+        if (pCnt === 2 && aCnt === 0 && emptySlots === 3) sc += 500;
+        if (aCnt >= 4) sc += 500000;
+        if (aCnt === 3 && pCnt === 0) sc += 40000;
+        if (aCnt === 2 && pCnt === 0 && emptySlots === 3) sc += 300;
+      }
     }
     return sc;
   }
@@ -438,7 +460,7 @@ function startGomokuRound(diff) {
       return ev;
     }
     var cands = getCandidates(2);
-    cands = sortCandidates(cands, diff === 'master' ? 40 : 25);
+    cands = sortCandidates(cands, 50);
     if (maxi) {
       var best = -Infinity;
       for (var i = 0; i < cands.length; i++) {
@@ -479,7 +501,7 @@ function startGomokuRound(diff) {
       if (checkWin(m[0], m[1])) { gameOver = true; status.textContent = 'AI 赢了'; toast('AI赢了!', 'error'); return; }
       turn = 1; status.textContent = '你的回合 · 执白';
     } else if (diff === 'hard' || diff === 'master') {
-      var cands = getCandidates(2);
+      var cands = getCandidates(3);
       if (cands.length === 0) return;
       cands = sortCandidates(cands, 50);
       var bestScore = -Infinity, bx = -1, by = -1;
