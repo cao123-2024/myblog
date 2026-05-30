@@ -6,12 +6,21 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const isVercel = process.env.VERCEL === '1';
 
+if (isVercel) {
+  const fs = require('fs');
+  fs.mkdirSync('/tmp/uploads', { recursive: true });
+}
+
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ limit: '5mb', extended: true }));
 
 /* Serve static files IMMEDIATELY — no DB needed */
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+if (isVercel) {
+  app.use('/uploads', express.static('/tmp/uploads'));
+} else {
+  app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+}
 
 /* Global error handler for multer / body-too-large */
 app.use(function(err, req, res, next) {

@@ -148,7 +148,7 @@ async function loadSettingsWallpapers() {
     var d = await API.get('/wallpapers');
     var wps = d.wallpapers || [];
     if (wps.length === 0) {
-      var staticCount = 83;
+      var staticCount = 20;
       wps = [];
       for (var i = 0; i < staticCount; i++) {
         wps.push({ url: '/img/wallpapers/' + i + '.jpg', name: '壁纸 ' + (i + 1) });
