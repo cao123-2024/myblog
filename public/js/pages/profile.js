@@ -71,7 +71,12 @@ function editProfile() {
   const ud = window._profileData?.user || Store.user;
   showModal('编辑资料', `
     <div class="form-group"><label>头像</label><input type="file" class="input" id="edit-avatar" accept="image/*"></div>
-    <div class="form-group"><label>背景图</label><input type="file" class="input" id="edit-bg" accept="image/*"></div>
+    <div class="form-group"><label>背景图</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="file" class="input" id="edit-bg" accept="image/*" style="flex:1">
+        <button class="btn btn-glass btn-sm" onclick="showWallpaperGallery()" style="white-space:nowrap">选择壁纸</button>
+      </div>
+    </div>
     <div class="form-group"><label>昵称</label><input class="input input-glass" id="edit-nickname" value="${escapeHtml(ud.nickname || '')}"></div>
     <div class="form-group"><label>简介</label><textarea class="input input-glass textarea" id="edit-bio" rows="3">${escapeHtml(ud.bio || '')}</textarea></div>
   `, async () => {
@@ -87,10 +92,75 @@ function editProfile() {
     const data = await API.uploadPut('/users/profile', fd);
     Store.user = data.user;
     updateNav();
+    applyWallpaper(data.user.bg_image);
     toast('资料已更新', 'success');
     navigate('profile');
   }, '保存');
 }
+
+async function showWallpaperGallery() {
+  try {
+    var data = await API.get('/wallpapers');
+    var wps = data.wallpapers || [];
+    if (wps.length === 0) {
+      toast('暂无壁纸，请联系管理员上传', 'info');
+      return;
+    }
+    var html = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-height:420px;overflow-y:auto;padding:4px">';
+    wps.forEach(function(w) {
+      html += '<div style="aspect-ratio:16/9;border-radius:10px;background-image:url('+escapeHtml(w.url)+');background-size:cover;background-position:center;cursor:pointer;border:2px solid transparent;transition:all 0.2s ease" '
+        + 'onclick="selectWallpaper(\''+escapeHtml(w.url)+'\')" '
+        + 'onmouseenter="this.style.borderColor=\'var(--blue)\';this.style.transform=\'scale(1.03)\'" '
+        + 'onmouseleave="this.style.borderColor=\'transparent\';this.style.transform=\'scale(1)\'" '
+        + 'title="'+escapeHtml(w.name||'')+'"></div>';
+    });
+    html += '</div><button class="btn btn-glass w-full mt-3" onclick="removeWallpaper()">清除背景</button>';
+    showModal('选择壁纸', html, null, null);
+  } catch(e) {
+    toast(e.message, 'error');
+  }
+}
+
+async function selectWallpaper(url) {
+  try {
+    var data = await API.post('/wallpapers/set', { url: url });
+    Store.user = data.user;
+    updateNav();
+    applyWallpaper(url);
+    closeModal();
+    toast('壁纸已应用', 'success');
+  } catch(e) {
+    toast(e.message, 'error');
+  }
+}
+
+async function removeWallpaper() {
+  try {
+    await API.post('/wallpapers/set', { url: '' });
+    Store.user.bg_image = '';
+    applyWallpaper('');
+    closeModal();
+    toast('背景已清除', 'success');
+  } catch(e) {
+    toast(e.message, 'error');
+  }
+}
+
+function applyWallpaper(url) {
+  if (url) {
+    document.body.style.backgroundImage = 'url(' + url + ')';
+    document.body.style.backgroundSize = 'cover';
+    document.body.style.backgroundPosition = 'center';
+    document.body.style.backgroundAttachment = 'fixed';
+  } else {
+    document.body.style.backgroundImage = '';
+    document.body.style.backgroundSize = '';
+    document.body.style.backgroundPosition = '';
+    document.body.style.backgroundAttachment = '';
+  }
+}
+
+window.applyWallpaper = applyWallpaper;
 
 async function sendFriendRequest(userId) {
   try {

@@ -45,7 +45,7 @@ const Store = {
   lastPageData: null,
   _pendingLogin: null,
 
-  setUser(u) { this.user = u; API.token = this.token; API.adminToken = this.adminToken; },
+  setUser(u) { this.user = u; API.token = this.token; API.adminToken = this.adminToken; if (u && u.bg_image && window.applyWallpaper) window.applyWallpaper(u.bg_image); },
   login(token, user) {
     /* Wipe any stale tokens first */
     localStorage.removeItem('token');

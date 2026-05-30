@@ -108,6 +108,21 @@ async function createAnnouncementsTable() {
   console.error('========================================');
 }
 
+async function createWallpapersTables() {
+  const sql = `
+    CREATE TABLE IF NOT EXISTS wallpapers (id SERIAL PRIMARY KEY, name TEXT, url TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW());
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS bg_image TEXT DEFAULT '';
+    ALTER TABLE users ALTER COLUMN bg_image SET DEFAULT '';
+  `;
+  try {
+    const sb = getSupabaseClient();
+    const { error } = await sb.sql`CREATE TABLE IF NOT EXISTS wallpapers (id SERIAL PRIMARY KEY, name TEXT, url TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW())`;
+    if (!error) console.log('[DB] wallpapers table auto-created');
+  } catch(e) {
+    console.error('[DB] wallpapers table init:', e.message);
+  }
+}
+
 async function sbInitDb() {
   let d = await supabaseApi('GET', '/rest/v1/users?select=id&username=eq.admin&limit=1');
   if (!d || d.length === 0) {
@@ -118,6 +133,7 @@ async function sbInitDb() {
   }
 
   await createAnnouncementsTable();
+  await createWallpapersTables();
 
   supabaseReady = true;
 }
