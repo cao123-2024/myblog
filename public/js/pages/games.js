@@ -7,27 +7,38 @@ function render_games() {
   var hdr = document.createElement('div');
   hdr.style.cssText = 'margin-bottom:20px';
   hdr.innerHTML = '<h2 style="font-size:1.4rem;font-weight:700">游戏中心</h2>'
-    + '<p class="text-sm text-secondary">选择一款游戏开始游玩</p>';
+    + '<p class="text-sm text-secondary">单人模式 · 选择一款游戏开始</p>';
   wrap.appendChild(hdr);
 
   var grid = document.createElement('div');
-  grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:24px';
+  grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;margin-bottom:24px';
+
+  var svgs = {
+    gomoku: '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#BF7B00" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="3" y1="3" x2="21" y2="21"/><line x1="21" y1="3" x2="3" y2="21"/></svg>',
+    '2048': '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#0078D4" stroke-width="1.5"><rect x="4" y="4" width="16" height="16" rx="3"/><text x="12" y="17" text-anchor="middle" font-size="11" font-weight="700" fill="#0078D4">2</text></svg>',
+    snake: '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#1A7F37" stroke-width="2"><path d="M4 18c0-3 4-3 4-6s-4-3-4-6 4-3 4-6"/><circle cx="14" cy="4" r="1.5" fill="#1A7F37"/><circle cx="18" cy="8" r="1.5" fill="#1A7F37"/><circle cx="16" cy="14" r="1.5" fill="#1A7F37"/></svg>',
+    minesweeper: '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#CF222E" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="12" cy="13" r="3"/><line x1="12" y1="8" x2="12" y2="10"/></svg>',
+    sudoku: '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#8250DF" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>',
+    tetris: '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#BC4C2A" stroke-width="1.5"><rect x="4" y="14" width="6" height="6"/><rect x="10" y="8" width="4" height="12"/><rect x="14" y="4" width="6" height="4"/></svg>',
+    breakout: '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#D63384" stroke-width="1.8"><rect x="4" y="4" width="16" height="4" rx="1"/><circle cx="12" cy="14" r="2"/><rect x="7" y="18" width="10" height="2" rx="1"/></svg>',
+    pong: '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#00C6FF" stroke-width="1.8"><rect x="2" y="6" width="2" height="12" rx="1"/><rect x="20" y="6" width="2" height="12" rx="1"/><line x1="12" y1="4" x2="12" y2="8" stroke-dasharray="1 1"/></svg>'
+  };
 
   var games = [
-    {id:'gomoku',name:'五子棋',desc:'AI对战',icon:'♟️',color:'#BF7B00'},
-    {id:'2048',name:'2048',desc:'合并数字',icon:'2',color:'#0078D4'},
-    {id:'snake',name:'贪吃蛇',desc:'经典蛇',icon:'🐍',color:'#1A7F37'},
-    {id:'minesweeper',name:'扫雷',desc:'排雷',icon:'💣',color:'#CF222E'},
-    {id:'sudoku',name:'数独',desc:'9x9谜题',icon:'9',color:'#8250DF'},
-    {id:'tetris',name:'俄罗斯方块',desc:'消除',icon:'🧱',color:'#BC4C2A'},
-    {id:'breakout',name:'打砖块',desc:'弹球',icon:'🎾',color:'#D63384'},
-    {id:'pong',name:'乒乓球',desc:'对打',icon:'🏓',color:'#00C6FF'}
+    {id:'gomoku',name:'五子棋',desc:'AI对战',color:'#BF7B00'},
+    {id:'2048',name:'2048',desc:'合并数字',color:'#0078D4'},
+    {id:'snake',name:'贪吃蛇',desc:'经典蛇',color:'#1A7F37'},
+    {id:'minesweeper',name:'扫雷',desc:'排雷',color:'#CF222E'},
+    {id:'sudoku',name:'数独',desc:'9x9谜题',color:'#8250DF'},
+    {id:'tetris',name:'俄罗斯方块',desc:'消除',color:'#BC4C2A'},
+    {id:'breakout',name:'打砖块',desc:'弹球',color:'#D63384'},
+    {id:'pong',name:'乒乓球',desc:'对打',color:'#00C6FF'}
   ];
 
   games.forEach(function(g){
-    grid.innerHTML += '<div class="card-glass game-grid-card" style="padding:16px;cursor:pointer;text-align:center" onclick="launchGame(\''+g.id+'\')">'
-      + '<div style="font-size:2rem;margin-bottom:6px">'+g.icon+'</div>'
-      + '<h3 style="font-size:0.9rem;font-weight:600;margin-bottom:2px">'+g.name+'</h3>'
+    grid.innerHTML += '<div class="card-glass game-grid-card" style="padding:14px;cursor:pointer;text-align:center" onclick="launchGame(\''+g.id+'\')">'
+      + '<div style="margin-bottom:6px;display:flex;justify-content:center">'+(svgs[g.id]||'')+'</div>'
+      + '<h3 style="font-size:0.85rem;font-weight:600;margin-bottom:2px">'+g.name+'</h3>'
       + '<p class="text-xs text-secondary">'+g.desc+'</p>'
       + '</div>';
   });
@@ -149,25 +160,24 @@ function init_sudoku() {
   draw();
 }
 
-/* ===== Gomoku AI — 4 difficulty levels ===== */
-var _gomokuDifficulty = 'medium'; /* medium by default */
+/* ===== Gomoku AI — 4 difficulty levels, fullscreen ===== */
+var _gomokuDifficulty = 'medium';
 
 function init_gomoku() {
   var el = document.getElementById('game-container');
   el.innerHTML = '';
   el.style.cssText = 'display:flex;flex-direction:column;align-items:center';
 
-  /* Difficulty picker screen */
   var title = document.createElement('h3');
   title.textContent = '选择难度';
   title.style.cssText = 'font-size:1.1rem;font-weight:600;margin-bottom:16px';
   el.appendChild(title);
 
   var diffs = [
-    { id: 'easy',    name: '简单',   desc: '随机+基础防守',      color: '#1A7F37' },
-    { id: 'medium',  name: '中等',   desc: '完整棋型识别 · 当前难度', color: '#BF7B00' },
-    { id: 'hard',    name: '困难',   desc: '2层前瞻搜索 · 堵冲四活三', color: '#CF222E' },
-    { id: 'master',  name: '大师',   desc: '4层深度搜索 · 人类无法战胜', color: '#8250DF' }
+    { id: 'easy',   name: '简单', desc: '连子计数 + 随机扰动',      color: '#1A7F37' },
+    { id: 'medium', name: '中等', desc: '完整棋型库 · 活四冲四识别', color: '#BF7B00' },
+    { id: 'hard',   name: '困难', desc: 'Minimax 深度2 · Alpha-Beta', color: '#CF222E' },
+    { id: 'master', name: '大师', desc: '深度4 · 25候选剪枝 · 无解', color: '#8250DF' }
   ];
 
   diffs.forEach(function(d){
@@ -177,56 +187,80 @@ function init_gomoku() {
     card.onmouseenter = function(){ card.style.boxShadow = '0 0 0 2px ' + d.color + ', var(--shadow-07)'; card.style.transform = 'translateX(4px)'; };
     card.onmouseleave = function(){ card.style.boxShadow = ''; card.style.transform = ''; };
     card.onclick = function(){ startGomokuRound(d.id); };
-    card.innerHTML = '<div style="width:40px;height:40px;border-radius:50%;background:'+d.color+';display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.2rem;flex-shrink:0">'+(d.id==='easy'?'☆':d.id==='medium'?'⚡':d.id==='hard'?'🔥':'👑')+'</div>'
+    card.innerHTML = '<div style="width:40px;height:40px;border-radius:50%;background:'+d.color+';display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.2rem;flex-shrink:0"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><circle cx="12" cy="12" r="9"/></svg></div>'
       + '<div style="flex:1;min-width:0"><div style="font-weight:600;font-size:0.95rem">'+d.name+'</div><div class="text-xs text-secondary">'+d.desc+'</div></div>'
-      + '<span style="color:'+d.color+';font-size:1.2rem">▶</span>';
+      + '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="'+d.color+'" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>';
     el.appendChild(card);
   });
 }
 
 function startGomokuRound(diff) {
   _gomokuDifficulty = diff;
-  document.getElementById('game-title').textContent = '五子棋 · ' + (diff==='easy'?'简单':diff==='medium'?'中等':diff==='hard'?'困难':'大师');
 
-  var size = 15, CELL = 34, BORDER = 5;
+  /* Fullscreen overlay */
+  var overlay = document.createElement('div');
+  overlay.id = 'gomoku-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.92);display:flex;flex-direction:column;align-items:center;justify-content:center';
+  document.body.appendChild(overlay);
+
+  var SZ = 15, CELL = 34, B = 5;
+  var CW = CELL * SZ + 10;
   var board = [], turn = 1, gameOver = false, lastMove = null;
 
-  var canvas = document.createElement('canvas');
-  canvas.width = CELL * size + 10;
-  canvas.height = CELL * size + 10;
-  canvas.style.cssText = 'border-radius:var(--radius-lg);background:#1a1a1a;cursor:pointer;max-width:100%';
+  /* Header bar */
+  var header = document.createElement('div');
+  header.style.cssText = 'position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;z-index:10';
+  header.innerHTML = '<button id="gmk-back" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);color:#ccc;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:0.85rem">← 返回</button>'
+    + '<span style="color:#ccc;font-weight:500">五子棋 · '+(diff==='easy'?'简单':diff==='medium'?'中等':diff==='hard'?'困难':'大师')+'</span>'
+    + '<button id="gmk-reset" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);color:#ccc;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:0.85rem">新游戏</button>';
+  overlay.appendChild(header);
 
+  /* Status */
   var status = document.createElement('div');
-  status.style.cssText = 'margin:8px 0;text-align:center;font-weight:500';
-  status.textContent = '你的回合 - 黑棋♟️';
+  status.style.cssText = 'color:#ccc;font-weight:500;font-size:0.95rem;text-align:center;margin-bottom:8px;min-height:24px';
+  status.textContent = '你的回合 · 执白';
+  overlay.appendChild(status);
 
-  /* Drawing */
+  /* Canvas */
+  var canvas = document.createElement('canvas');
+  canvas.width = CW; canvas.height = CW;
+  canvas.style.cssText = 'border-radius:8px;background:#1a1a1a;cursor:pointer;max-width:98vw;max-height:calc(100vh - 180px)';
+  overlay.appendChild(canvas);
+
+  /* Buttons */
+  overlay.appendChild(header);
+  overlay.appendChild(status);
+  overlay.appendChild(canvas);
+
+  document.getElementById('gmk-back').onclick = function(){ document.body.removeChild(overlay); _gameActive = null; };
+  document.getElementById('gmk-reset').onclick = function(){ initBoard(); };
+
+  /* ===== Drawing ===== */
   function drawBoard() {
     var ctx = canvas.getContext('2d');
-    var w = canvas.width, h = canvas.height;
-    ctx.fillStyle = '#1a1a1a'; ctx.fillRect(0, 0, w, h);
-    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
-    for (var i = 0; i < size; i++) {
-      ctx.beginPath(); ctx.moveTo(BORDER, BORDER + i * CELL); ctx.lineTo(BORDER + (size - 1) * CELL, BORDER + i * CELL); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(BORDER + i * CELL, BORDER); ctx.lineTo(BORDER + i * CELL, BORDER + (size - 1) * CELL); ctx.stroke();
+    ctx.fillStyle = '#1a1a1a'; ctx.fillRect(0, 0, CW, CW);
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+    for (var i = 0; i < SZ; i++) {
+      ctx.beginPath(); ctx.moveTo(B, B + i * CELL); ctx.lineTo(B + (SZ - 1) * CELL, B + i * CELL); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(B + i * CELL, B); ctx.lineTo(B + i * CELL, B + (SZ - 1) * CELL); ctx.stroke();
     }
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    [[3,3],[3,7],[3,11],[7,3],[7,7],[7,11],[11,3],[11,7],[11,11]].forEach(function(p) {
-      ctx.beginPath(); ctx.arc(BORDER + p[0] * CELL, BORDER + p[1] * CELL, 3, 0, Math.PI * 2); ctx.fill();
-    });
-    for (var y = 0; y < size; y++) for (var x = 0; x < size; x++) {
+    var stars = [[3,3],[3,7],[3,11],[7,3],[7,7],[7,11],[11,3],[11,7],[11,11]];
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    stars.forEach(function(p){ ctx.beginPath(); ctx.arc(B + p[0] * CELL, B + p[1] * CELL, 2.5, 0, Math.PI * 2); ctx.fill(); });
+
+    for (var y = 0; y < SZ; y++) for (var x = 0; x < SZ; x++) {
       if (!board[y][x]) continue;
-      var cx = BORDER + x * CELL, cy = BORDER + y * CELL, r = CELL * 0.42;
+      var cx = B + x * CELL, cy = B + y * CELL, r = CELL * 0.42;
       ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
       var g = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, r * 0.1, cx, cy, r);
-      if (board[y][x] === 1) { g.addColorStop(0, '#fff'); g.addColorStop(1, '#888'); }
-      else { g.addColorStop(0, '#555'); g.addColorStop(1, '#111'); }
+      if (board[y][x] === 1) { g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#aaaaaa'); }
+      else { g.addColorStop(0, '#333333'); g.addColorStop(1, '#000000'); }
       ctx.fillStyle = g; ctx.fill();
     }
     if (lastMove) {
-      var lcx = BORDER + lastMove.x * CELL, lcy = BORDER + lastMove.y * CELL;
+      var lx = B + lastMove.x * CELL, ly = B + lastMove.y * CELL;
       ctx.strokeStyle = '#FFD700'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(lcx, lcy, CELL * 0.44, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(lx, ly, CELL * 0.44, 0, Math.PI * 2); ctx.stroke();
       ctx.lineWidth = 1;
     }
   }
@@ -235,57 +269,54 @@ function startGomokuRound(diff) {
     var me = board[by][bx], dirs = [[1,0],[0,1],[1,1],[1,-1]];
     for (var d = 0; d < 4; d++) {
       var cnt = 1;
-      for (var s = 1; s < 5; s++) { var nx = bx + dirs[d][0] * s, ny = by + dirs[d][1] * s; if (nx >= 0 && nx < size && ny >= 0 && ny < size && board[ny][nx] === me) cnt++; else break; }
-      for (var s = 1; s < 5; s++) { var nx = bx - dirs[d][0] * s, ny = by - dirs[d][1] * s; if (nx >= 0 && nx < size && ny >= 0 && ny < size && board[ny][nx] === me) cnt++; else break; }
+      for (var s = 1; s < 5; s++) { var nx = bx + dirs[d][0] * s, ny = by + dirs[d][1] * s; if (nx >= 0 && nx < SZ && ny >= 0 && ny < SZ && board[ny][nx] === me) cnt++; else break; }
+      for (var s = 1; s < 5; s++) { var nx = bx - dirs[d][0] * s, ny = by - dirs[d][1] * s; if (nx >= 0 && nx < SZ && ny >= 0 && ny < SZ && board[ny][nx] === me) cnt++; else break; }
       if (cnt >= 5) return true;
     }
     return false;
   }
 
-  /* === AI Engines === */
+  /* ===== AI ===== */
   var DIRS = [[1,0],[0,1],[1,1],[1,-1]];
   var FIVE = 7, L4 = 6, S4 = 5, L3 = 4, S3 = 3, L2 = 2, S2 = 1;
+  var posScore = [];
+  for (var y = 0; y < SZ; y++) { posScore[y] = []; for (var x = 0; x < SZ; x++) { var c2 = SZ / 2 - 1; posScore[y][x] = SZ - Math.max(Math.abs(x - c2), Math.abs(y - c2)); } }
 
-  /* Get candidate moves: only empty cells near existing stones */
-  function getCandidates(radius) {
-    radius = radius || 2;
-    var near = [];
-    for (var y = 0; y < size; y++) { near[y] = []; for (var x = 0; x < size; x++) near[y][x] = false; }
-    var foundStone = false;
-    for (var y = 0; y < size; y++) for (var x = 0; x < size; x++) {
-      if (board[y][x] !== 0) {
-        foundStone = true;
-        for (var dy = -radius; dy <= radius; dy++) for (var dx = -radius; dx <= radius; dx++) {
+  /* Candidate moves near existing stones */
+  function getCandidates(r) {
+    r = r || 2; var near = [];
+    for (var y = 0; y < SZ; y++) { near[y] = []; for (var x = 0; x < SZ; x++) near[y][x] = false; }
+    var found = false;
+    for (var y = 0; y < SZ; y++) for (var x = 0; x < SZ; x++) {
+      if (board[y][x] !== 0) { found = true;
+        for (var dy = -r; dy <= r; dy++) for (var dx = -r; dx <= r; dx++) {
           var ny = y + dy, nx = x + dx;
-          if (nx >= 0 && nx < size && ny >= 0 && ny < size && board[ny][nx] === 0) near[ny][nx] = true;
+          if (nx >= 0 && nx < SZ && ny >= 0 && ny < SZ && board[ny][nx] === 0) near[ny][nx] = true;
         }
       }
     }
-    if (!foundStone) return [[7, 7]]; /* first move: center */
-    var result = [];
-    for (var y = 0; y < size; y++) for (var x = 0; x < size; x++) {
-      if (near[y][x]) result.push([x, y]);
-    }
-    return result;
+    if (!found) return [[7, 7]];
+    var out = [];
+    for (var y = 0; y < SZ; y++) for (var x = 0; x < SZ; x++) { if (near[y][x]) out.push([x, y]); }
+    return out;
   }
 
-  /* === Evaluate engine (shared by all difficulties) === */
-  var evalRecord = [], evalCount = [[], []];
-  for (var y = 0; y < size; y++) { evalRecord[y] = []; for (var x = 0; x < size; x++) evalRecord[y][x] = [0, 0, 0, 0]; }
-  for (var c = 0; c < 2; c++) { evalCount[c] = []; for (var i = 0; i < 8; i++) evalCount[c][i] = 0; }
+  /* Evaluate engine — positive = AI advantage */
+  var evR = [], evC = [[], []];
+  for (var y = 0; y < SZ; y++) { evR[y] = []; for (var x = 0; x < SZ; x++) evR[y][x] = [0,0,0,0]; }
+  for (var c = 0; c < 2; c++) { evC[c] = []; for (var i = 0; i < 8; i++) evC[c][i] = 0; }
 
   function getLine(bx, by, di, you) {
-    var line = Array(9).fill(you);
+    var l = Array(9).fill(you);
     var tx = bx - 5 * DIRS[di][0], ty = by - 5 * DIRS[di][1];
-    for (var i = 0; i < 9; i++) { tx += DIRS[di][0]; ty += DIRS[di][1]; if (tx >= 0 && tx < size && ty >= 0 && ty < size) line[i] = board[ty][tx]; }
-    return line;
+    for (var i = 0; i < 9; i++) { tx += DIRS[di][0]; ty += DIRS[di][1]; if (tx >= 0 && tx < SZ && ty >= 0 && ty < SZ) l[i] = board[ty][tx]; }
+    return l;
   }
-  function setRecord(bx, by, left, right, di) {
-    var tx = bx + (-5 + left) * DIRS[di][0], ty = by + (-5 + left) * DIRS[di][1];
-    for (var i = left; i < right; i++) { tx += DIRS[di][0]; ty += DIRS[di][1]; if (ty >= 0 && ty < size && tx >= 0 && tx < size) evalRecord[ty][tx][di] = 1; }
+  function sR(bx, by, l, r, di) {
+    var tx = bx + (-5 + l) * DIRS[di][0], ty = by + (-5 + l) * DIRS[di][1];
+    for (var i = l; i < r; i++) { tx += DIRS[di][0]; ty += DIRS[di][1]; if (ty >= 0 && ty < SZ && tx >= 0 && tx < SZ) evR[ty][tx][di] = 1; }
   }
-
-  function analyzeLine(bx, by, di, me, you, cnt) {
+  function aL(bx, by, di, me, you, cnt) {
     var line = getLine(bx, by, di, you);
     var li = 4, ri = 4;
     while (ri < 8 && line[ri + 1] === me) ri++;
@@ -294,27 +325,27 @@ function startGomokuRound(diff) {
     while (rr < 8 && line[rr + 1] !== you) rr++;
     while (lr > 0 && line[lr - 1] !== you) lr--;
     var range = rr - lr + 1;
-    if (range < 5) { setRecord(bx, by, lr, rr, di); return; }
-    setRecord(bx, by, li, ri, di);
-    var mRange = ri - li + 1;
-    if (mRange === 5) { cnt[FIVE]++; return; }
-    if (mRange === 4) { cnt[line[li - 1] === 0 && line[ri + 1] === 0 ? L4 : S4]++; return; }
-    if (mRange === 3) {
+    if (range < 5) { sR(bx, by, lr, rr, di); return; }
+    sR(bx, by, li, ri, di);
+    var mR = ri - li + 1;
+    if (mR === 5) { cnt[FIVE]++; return; }
+    if (mR === 4) { cnt[line[li - 1] === 0 && line[ri + 1] === 0 ? L4 : S4]++; return; }
+    if (mR === 3) {
       var le = line[li - 1] === 0, re = line[ri + 1] === 0;
       if (le && re) { if (range > 5) cnt[L3]++; else cnt[S3]++; }
       else if (le || re) { cnt[S3]++; }
       return;
     }
-    if (mRange === 2) {
+    if (mR === 2) {
       var le = line[li - 1] === 0, re = line[ri + 1] === 0, l2 = line[li - 2] === me, r2 = line[ri + 2] === me;
-      var leftThree = false, rightThree = false;
-      if (le && l2) { setRecord(bx, by, li - 2, li - 1, di); if (line[li - 3] === 0) { if (re) cnt[L3]++; else cnt[S3]++; leftThree = true; } else if (line[li - 3] === you && re) { cnt[S3]++; leftThree = true; } }
-      if (re && r2) { if (line[ri + 3] === me) { setRecord(bx, by, ri + 1, ri + 2, di); cnt[S4]++; rightThree = true; } else if (line[ri + 3] === 0) { if (le) cnt[L3]++; else cnt[S3]++; rightThree = true; } else if (le) { cnt[S3]++; rightThree = true; } }
-      if (leftThree || rightThree) return;
+      var l3 = false, r3 = false;
+      if (le && l2) { sR(bx, by, li - 2, li - 1, di); if (line[li - 3] === 0) { if (re) cnt[L3]++; else cnt[S3]++; l3 = true; } else if (line[li - 3] === you && re) { cnt[S3]++; l3 = true; } }
+      if (re && r2) { if (line[ri + 3] === me) { sR(bx, by, ri + 1, ri + 2, di); cnt[S4]++; r3 = true; } else if (line[ri + 3] === 0) { if (le) cnt[L3]++; else cnt[S3]++; r3 = true; } else if (le) { cnt[S3]++; r3 = true; } }
+      if (l3 || r3) return;
       if (le && re) cnt[L2]++; else if (le || re) cnt[S2]++;
       return;
     }
-    if (mRange === 1) {
+    if (mR === 1) {
       var le = line[li - 1] === 0, re = line[ri + 1] === 0;
       if (le && line[li - 2] === me && line[li - 3] === 0 && line[ri + 1] === you) cnt[S2]++;
       if (re && line[ri + 2] === me && line[ri + 3] === 0) { if (le) cnt[L2]++; else cnt[S2]++; }
@@ -322,99 +353,88 @@ function startGomokuRound(diff) {
   }
 
   function fullEvaluate() {
-    for (var c = 0; c < 2; c++) for (var i = 0; i < 8; i++) evalCount[c][i] = 0;
-    for (var y = 0; y < size; y++) for (var x = 0; x < size; x++) evalRecord[y][x] = [0, 0, 0, 0];
-    for (var y = 0; y < size; y++) for (var x = 0; x < size; x++) {
+    for (var c = 0; c < 2; c++) for (var i = 0; i < 8; i++) evC[c][i] = 0;
+    for (var y = 0; y < SZ; y++) for (var x = 0; x < SZ; x++) evR[y][x] = [0,0,0,0];
+    for (var y = 0; y < SZ; y++) for (var x = 0; x < SZ; x++) {
       if (board[y][x] === 0) continue;
       for (var d = 0; d < 4; d++) {
-        if (evalRecord[y][x][d]) continue;
+        if (evR[y][x][d]) continue;
         var me = board[y][x];
-        analyzeLine(x, y, d, me, me === 1 ? 2 : 1, evalCount[me - 1]);
+        aL(x, y, d, me, me === 1 ? 2 : 1, evC[me - 1]);
       }
     }
-    if (evalCount[0][FIVE]) return 100000; if (evalCount[1][FIVE]) return -100000;
-    var my = evalCount[0], yr = evalCount[1];
+    /* FIX: positive = AI advantage, negative = player advantage */
+    /* evC[1]=AI, evC[0]=player */
+    if (evC[1][FIVE]) return 100000;
+    if (evC[0][FIVE]) return -100000;
+    var my = evC[1], yr = evC[0];
     if (yr[L4]) return -9050; if (yr[S4]) return -9040; if (my[L4]) return 9030;
     if (my[S4] && my[L3]) return 9020;
     if (yr[L3] && my[S4] === 0) return -9010;
     if (my[L3] > 1 && yr[L3] === 0 && yr[S3] === 0) return 9000;
-    var mscore = 0, oscore = 0;
-    if (my[S4]) mscore += 2000;
-    if (my[L3] > 1) mscore += 500; else if (my[L3] > 0) mscore += 100;
-    if (yr[L3] > 1) oscore += 2000; else if (yr[L3] > 0) oscore += 400;
-    if (my[S3]) mscore += my[S3] * 10; if (yr[S3]) oscore += yr[S3] * 10;
-    if (my[L2]) mscore += my[L2] * 4; if (yr[L2]) oscore += yr[L2] * 4;
-    if (my[S2]) mscore += my[S2] * 4; if (yr[S2]) oscore += yr[S2] * 4;
-    return mscore - oscore;
+    var ms = 0, os = 0;
+    if (my[S4]) ms += 2000;
+    if (my[L3] > 1) ms += 500; else if (my[L3] > 0) ms += 100;
+    if (yr[L3] > 1) os += 2000; else if (yr[L3] > 0) os += 400;
+    if (my[S3]) ms += my[S3] * 10; if (yr[S3]) os += yr[S3] * 10;
+    if (my[L2]) ms += my[L2] * 4; if (yr[L2]) os += yr[L2] * 4;
+    if (my[S2]) ms += my[S2] * 4; if (yr[S2]) os += yr[S2] * 4;
+    return ms - os;
   }
 
+  /* Easy: simple count */
   function simpleEvaluate() {
-    /* Score each empty cell by counting consecutive stones in all 4 directions */
-    var bestScore = -Infinity, bx = 7, by = 7;
-    for (var y = 0; y < size; y++) for (var x = 0; x < size; x++) {
+    var best = -Infinity, bx = 7, by = 7;
+    for (var y = 0; y < SZ; y++) for (var x = 0; x < SZ; x++) {
       if (board[y][x] !== 0) continue;
-      var atkScore = 0, defScore = 0;
+      var atk = 0, def = 0;
       for (var d = 0; d < 4; d++) {
-        /* Attack: AI placing here */
-        var a3 = 0, a2 = 0, a1 = 0;
-        for (var s = 1; s <= 4; s++) { var nx = x + DIRS[d][0] * s, ny = y + DIRS[d][1] * s; if (nx >= 0 && nx < size && ny >= 0 && ny < size && board[ny][nx] === 2) a3++; else break; }
-        for (var s = 1; s <= 4; s++) { var nx = x - DIRS[d][0] * s, ny = y - DIRS[d][1] * s; if (nx >= 0 && nx < size && ny >= 0 && ny < size && board[ny][nx] === 2) a3++; else break; }
-        /* Defense: block player */
-        var d3 = 0;
-        for (var s = 1; s <= 4; s++) { var nx = x + DIRS[d][0] * s, ny = y + DIRS[d][1] * s; if (nx >= 0 && nx < size && ny >= 0 && ny < size && board[ny][nx] === 1) d3++; else break; }
-        for (var s = 1; s <= 4; s++) { var nx = x - DIRS[d][0] * s, ny = y - DIRS[d][1] * s; if (nx >= 0 && nx < size && ny >= 0 && ny < size && board[ny][nx] === 1) d3++; else break; }
-        atkScore += a3 * 10 + a2 * 2;
-        defScore += d3 >= 3 ? 100 : d3 >= 2 ? 20 : d3;
+        var a = 0;
+        for (var s = 1; s <= 4; s++) { var nx = x + DIRS[d][0] * s, ny = y + DIRS[d][1] * s; if (nx >= 0 && nx < SZ && ny >= 0 && ny < SZ && board[ny][nx] === 2) a++; else break; }
+        for (var s = 1; s <= 4; s++) { var nx = x - DIRS[d][0] * s, ny = y - DIRS[d][1] * s; if (nx >= 0 && nx < SZ && ny >= 0 && ny < SZ && board[ny][nx] === 2) a++; else break; }
+        atk += a * a;
+        var dd = 0;
+        for (var s = 1; s <= 4; s++) { var nx = x + DIRS[d][0] * s, ny = y + DIRS[d][1] * s; if (nx >= 0 && nx < SZ && ny >= 0 && ny < SZ && board[ny][nx] === 1) dd++; else break; }
+        for (var s = 1; s <= 4; s++) { var nx = x - DIRS[d][0] * s, ny = y - DIRS[d][1] * s; if (nx >= 0 && nx < SZ && ny >= 0 && ny < SZ && board[ny][nx] === 1) dd++; else break; }
+        def += dd >= 3 ? 100 : dd >= 2 ? 20 : dd;
       }
-      /* Center bonus */
-      var cx = size / 2 - 1;
-      var center = size - Math.max(Math.abs(x - cx), Math.abs(y - cx));
-      var score = Math.max(atkScore, defScore * 1.2) + center * 0.5 + Math.random() * 2;
-      if (score > bestScore) { bestScore = score; bx = x; by = y; }
+      var cx = SZ / 2 - 1, center = SZ - Math.max(Math.abs(x - cx), Math.abs(y - cx));
+      var sc = Math.max(atk * 10, def * 1.2) + center * 0.5 + Math.random() * 2;
+      if (sc > best) { best = sc; bx = x; by = y; }
     }
     return [bx, by];
   }
 
-  /* === Depth-limited Minimax (Hard & Master) === */
-  var MAX_DEPTH = (diff === 'master' ? 4 : 2);
-  var posScore = [];
-  for (var y = 0; y < size; y++) { posScore[y] = []; for (var x = 0; x < size; x++) { var cx2 = size / 2 - 1; posScore[y][x] = size - Math.max(Math.abs(x - cx2), Math.abs(y - cx2)); } }
+  /* Minimax with Alpha-Beta */
+  var MAX_D = (diff === 'master' ? 4 : 2);
 
-  function minimax(depth, alpha, beta, maximizing) {
-    /* Check terminal */
-    if (depth === 0) {
-      return fullEvaluate();
-    }
-    var candidates = getCandidates(2);
-    /* Sort by quick heuristic: prefer center */
-    candidates.sort(function(a, b) {
-      return posScore[b[1]][b[0]] - posScore[a[1]][a[0]];
-    });
-    /* Limit candidates for performance */
-    if (candidates.length > (diff === 'master' ? 25 : 15)) {
-      candidates = candidates.slice(0, (diff === 'master' ? 25 : 15));
-    }
+  function minimax(depth, alpha, beta, maxi) {
+    if (depth === 0) return fullEvaluate();
+    var cands = getCandidates(2);
+    cands.sort(function(a, b) { return posScore[b[1]][b[0]] - posScore[a[1]][a[0]]; });
+    var limit = (diff === 'master' ? 25 : 15);
+    if (cands.length > limit) cands = cands.slice(0, limit);
 
-    if (maximizing) {
+    if (maxi) {
       var best = -Infinity;
-      for (var i = 0; i < candidates.length; i++) {
-        var x = candidates[i][0], y = candidates[i][1];
+      for (var i = 0; i < cands.length; i++) {
+        var x = cands[i][0], y = cands[i][1];
         board[y][x] = 2;
-        var val = minimax(depth - 1, alpha, beta, false);
+        var v = minimax(depth - 1, alpha, beta, false);
         board[y][x] = 0;
-        if (val > best) best = val;
+        if (v > best) best = v;
         if (best > alpha) alpha = best;
         if (alpha >= beta) break;
       }
       return best;
     } else {
       var best = Infinity;
-      for (var i = 0; i < candidates.length; i++) {
-        var x = candidates[i][0], y = candidates[i][1];
+      for (var i = 0; i < cands.length; i++) {
+        var x = cands[i][0], y = cands[i][1];
         board[y][x] = 1;
-        var val = minimax(depth - 1, alpha, beta, true);
+        var v = minimax(depth - 1, alpha, beta, true);
         board[y][x] = 0;
-        if (val < best) best = val;
+        if (v < best) best = v;
         if (best < beta) beta = best;
         if (alpha >= beta) break;
       }
@@ -422,93 +442,75 @@ function startGomokuRound(diff) {
     }
   }
 
-  function aiMoveHard(depthOverride) {
-    var maxDepth = depthOverride || MAX_DEPTH;
-    var candidates = getCandidates(2);
-    if (candidates.length === 0) return;
-    candidates.sort(function(a, b) { return posScore[b[1]][b[0]] - posScore[a[1]][a[0]]; });
-    if (candidates.length > 20) candidates = candidates.slice(0, 20);
-
-    var bestScore = -Infinity, bx = -1, by = -1;
-    for (var i = 0; i < candidates.length; i++) {
-      var x = candidates[i][0], y = candidates[i][1];
-      board[y][x] = 2;
-      var val = minimax(maxDepth, -Infinity, Infinity, false);
-      board[y][x] = 0;
-      if (val > bestScore) { bestScore = val; bx = x; by = y; }
-    }
-    if (bx < 0) return;
-    board[by][bx] = 2;
-    lastMove = { x: bx, y: by };
-    drawBoard();
-    if (checkWin(bx, by)) { gameOver = true; status.textContent = 'AI赢了!🤖'; toast('AI赢了!', 'error'); return; }
-    turn = 1; status.textContent = '你的回合 - 黑棋♟️';
-  }
-
-  function aiMoveMedium() {
+  function aiThink() {
     if (gameOver) return;
-    var bestScore = -Infinity, bx = -1, by = -1;
-    for (var y = 0; y < size; y++) for (var x = 0; x < size; x++) {
-      if (board[y][x] !== 0) continue;
-      board[y][x] = 2;
-      var s = fullEvaluate() + posScore[y][x] * 0.1;
-      board[y][x] = 0;
-      if (s > bestScore) { bestScore = s; bx = x; by = y; }
+    if (diff === 'easy') {
+      var m = simpleEvaluate();
+      if (!m) return;
+      board[m[1]][m[0]] = 2;
+      lastMove = { x: m[0], y: m[1] };
+      drawBoard();
+      if (checkWin(m[0], m[1])) { gameOver = true; status.textContent = 'AI 赢了'; toast('AI赢了!', 'error'); return; }
+      turn = 1; status.textContent = '你的回合 · 执白';
+    } else if (diff === 'hard' || diff === 'master') {
+      var cands = getCandidates(2);
+      if (cands.length === 0) return;
+      cands.sort(function(a, b) { return posScore[b[1]][b[0]] - posScore[a[1]][a[0]]; });
+      if (cands.length > 20) cands = cands.slice(0, 20);
+      var bestScore = -Infinity, bx = -1, by = -1;
+      for (var i = 0; i < cands.length; i++) {
+        var x = cands[i][0], y = cands[i][1];
+        board[y][x] = 2;
+        var v = minimax(MAX_D, -Infinity, Infinity, false);
+        board[y][x] = 0;
+        if (v > bestScore) { bestScore = v; bx = x; by = y; }
+      }
+      if (bx < 0) return;
+      board[by][bx] = 2;
+      lastMove = { x: bx, y: by };
+      drawBoard();
+      if (checkWin(bx, by)) { gameOver = true; status.textContent = 'AI 赢了'; toast('AI赢了!', 'error'); return; }
+      turn = 1; status.textContent = '你的回合 · 执白';
+    } else {
+      /* Medium: single-layer fullEvaluate */
+      var bestScore = -Infinity, bx = -1, by = -1;
+      for (var y = 0; y < SZ; y++) for (var x = 0; x < SZ; x++) {
+        if (board[y][x] !== 0) continue;
+        board[y][x] = 2;
+        var s = fullEvaluate() + posScore[y][x] * 0.1;
+        board[y][x] = 0;
+        if (s > bestScore) { bestScore = s; bx = x; by = y; }
+      }
+      if (bx < 0) return;
+      board[by][bx] = 2;
+      lastMove = { x: bx, y: by };
+      drawBoard();
+      if (checkWin(bx, by)) { gameOver = true; status.textContent = 'AI 赢了'; toast('AI赢了!', 'error'); return; }
+      turn = 1; status.textContent = '你的回合 · 执白';
     }
-    if (bx < 0) return;
-    board[by][bx] = 2;
-    lastMove = { x: bx, y: by };
-    drawBoard();
-    if (checkWin(bx, by)) { gameOver = true; status.textContent = 'AI赢了!🤖'; toast('AI赢了!', 'error'); return; }
-    turn = 1; status.textContent = '你的回合 - 黑棋♟️';
   }
 
-  function aiMoveEasy() {
-    if (gameOver) return;
-    var move = simpleEvaluate();
-    var bx = move[0], by = move[1];
-    board[by][bx] = 2;
-    lastMove = { x: bx, y: by };
-    drawBoard();
-    if (checkWin(bx, by)) { gameOver = true; status.textContent = 'AI赢了!🤖'; toast('AI赢了!', 'error'); return; }
-    turn = 1; status.textContent = '你的回合 - 黑棋♟️';
-  }
-
-  function aiMove() {
-    if (diff === 'easy') aiMoveEasy();
-    else if (diff === 'hard' || diff === 'master') aiMoveHard();
-    else aiMoveMedium();
-  }
-
-  window.gomokuClick = function(e) {
+  canvas.addEventListener('click', function(e) {
     if (gameOver || turn !== 1) return;
     var rect = canvas.getBoundingClientRect();
-    var x = Math.round((e.clientX - rect.left - BORDER) / CELL), y = Math.round((e.clientY - rect.top - BORDER) / CELL);
-    if (x < 0 || x >= size || y < 0 || y >= size || board[y][x] !== 0) return;
+    var scaleX = CW / rect.width;
+    var scaleY = CW / rect.height;
+    var mx = (e.clientX - rect.left) * scaleX;
+    var my = (e.clientY - rect.top) * scaleY;
+    var x = Math.round((mx - B) / CELL), y = Math.round((my - B) / CELL);
+    if (x < 0 || x >= SZ || y < 0 || y >= SZ || board[y][x] !== 0) return;
     board[y][x] = 1; lastMove = { x: x, y: y }; drawBoard();
-    if (checkWin(x, y)) { gameOver = true; status.textContent = '你赢了!🎉'; toast('你赢了!', 'success'); return; }
-    turn = 2; status.textContent = 'AI思考中...';
-    setTimeout(aiMove, diff === 'master' ? 50 : diff === 'hard' ? 100 : 150);
-  };
-
-  canvas.addEventListener('click', window.gomokuClick);
+    if (checkWin(x, y)) { gameOver = true; status.textContent = '你赢了!'; toast('你赢了!', 'success'); return; }
+    turn = 2; status.textContent = 'AI 思考中...';
+    setTimeout(aiThink, diff === 'master' ? 50 : diff === 'hard' ? 80 : 150);
+  });
 
   function initBoard() {
-    board = Array.from({ length: size }, function() { return Array(size).fill(0); });
+    board = Array.from({ length: SZ }, function() { return Array(SZ).fill(0); });
     turn = 1; gameOver = false; lastMove = null;
-    status.textContent = '你的回合 - 黑棋♟️';
+    status.textContent = '你的回合 · 执白';
     drawBoard();
   }
-
-  var el2 = document.getElementById('game-container');
-  el2.innerHTML = '';
-  el2.style.cssText = 'display:flex;flex-direction:column;align-items:center';
-  el2.appendChild(status);
-  var btnWrap = document.createElement('div');
-  btnWrap.style.cssText = 'text-align:center;margin:6px 0;display:flex;gap:8px';
-  btnWrap.innerHTML = '<button class="btn btn-glass btn-sm" onclick="init_gomoku()">选择难度</button><button class="btn btn-glass btn-sm" onclick="startGomokuRound(\'' + diff + '\')">新游戏</button>';
-  el2.appendChild(btnWrap);
-  el2.appendChild(canvas);
   initBoard();
 }
 
