@@ -53,7 +53,7 @@
 
 /* ===== Carousel ===== */
 .carousel {
-  position: relative; width: 100%; height: 380px;
+  position: relative; width: 100%; height: 420px;
   border-radius: var(--radius-2xl); overflow: hidden; margin-bottom: 36px;
 }
 .carousel-track {
@@ -66,32 +66,50 @@
 }
 .carousel-slide::before {
   content: ''; position: absolute; inset: 0;
-  background: linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.7));
+  background: linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.65));
 }
-.carousel-slide-content { position: relative; z-index: 2; padding: 40px; color: #e8e8e8; max-width: 600px; }
-.carousel-slide-content h2 { font-size: 1.8rem; font-weight: 600; margin-bottom: 8px; }
-.carousel-slide-content p { font-size: 1rem; opacity: 0.8; }
+.carousel-slide-content { position: relative; z-index: 2; padding: 48px 56px; color: #e8e8e8; max-width: 640px; }
+.carousel-slide-content h2 { font-size: 2rem; font-weight: 600; margin-bottom: 8px; letter-spacing: -0.5px; }
+.carousel-slide-content p { font-size: 1.05rem; opacity: 0.85; line-height: 1.6; }
 .carousel-dots {
-  position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+  position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
   display: flex; gap: 8px; z-index: 3;
 }
 .carousel-dot {
   width: 8px; height: 8px; border-radius: 50%;
-  background: rgba(255,255,255,0.3); cursor: pointer;
+  background: rgba(255,255,255,0.35); cursor: pointer;
   transition: all 0.3s var(--jelly-soft);
 }
 .carousel-dot.active { background: #fff; width: 24px; border-radius: 4px; }
 .carousel-btn {
   position: absolute; top: 50%; transform: translateY(-50%); z-index: 3;
-  width: 40px; height: 40px; border-radius: 50%;
-  background: rgba(255,255,255,0.15); backdrop-filter: blur(10px);
-  border: 1px solid rgba(255,255,255,0.2); cursor: pointer;
+  width: 48px; height: 48px; border-radius: 50%; padding: 0;
+  background: rgba(15,15,20,0.45); backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.15);
+  cursor: pointer; outline: none;
   display: flex; align-items: center; justify-content: center;
-  color: #fff; font-size: 1.2rem; transition: all 0.2s ease;
+  transition: all 0.35s var(--jelly-soft);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
 }
-.carousel-btn:hover { background: rgba(255,255,255,0.3); }
-.carousel-btn.prev { left: 16px; }
-.carousel-btn.next { right: 16px; }
+.carousel-btn svg {
+  width: 20px; height: 20px;
+  transition: transform 0.3s var(--jelly-soft);
+}
+.carousel-btn:hover {
+  background: rgba(15,15,20,0.65);
+  border-color: rgba(255,255,255,0.3);
+  box-shadow: 0 6px 24px rgba(0,0,0,0.45);
+  transform: translateY(-50%) scale(1.08);
+}
+.carousel-btn:active {
+  transform: translateY(-50%) scale(0.94);
+  transition: all 0.08s var(--jelly-soft);
+}
+.carousel-btn.prev { left: 20px; }
+.carousel-btn.next { right: 20px; }
+.carousel-btn.prev:hover svg { transform: translateX(-3px); }
+.carousel-btn.next:hover svg { transform: translateX(3px); }
 
 /* ===== Article Card ===== */
 .article-card {

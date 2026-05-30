@@ -5,22 +5,25 @@ function render_home() {
   const carousel = document.createElement('div');
   carousel.className = 'carousel';
   carousel.id = 'home-carousel';
-  carousel.innerHTML = `
-    <div class="carousel-track" id="carousel-track">
-      <div class="carousel-slide" style="background:linear-gradient(135deg, #0078D4 0%, #00C6FF 100%)">
-        <div class="carousel-slide-content"><h2>欢迎来到 LUMINA</h2><p>液态玻璃设计 · 个人博客系统</p></div>
-      </div>
-      <div class="carousel-slide" style="background:linear-gradient(135deg, #1A1C23 0%, #2D3A54 100%)">
-        <div class="carousel-slide-content"><h2>Spring Damping</h2><p>每一个按钮都有弹簧阻尼动画</p></div>
-      </div>
-      <div class="carousel-slide" style="background:linear-gradient(135deg, #0D1117 0%, #1C2838 100%)">
-        <div class="carousel-slide-content"><h2>Liquid Glass</h2><p>14层阴影深度 · 液态玻璃质感</p></div>
-      </div>
-    </div>
-    <div class="carousel-dots" id="carousel-dots"></div>
-    <button class="carousel-btn prev" onclick="carouselMove(-1)">←</button>
-    <button class="carousel-btn next" onclick="carouselMove(1)">→</button>
-  `;
+
+  const slides = [
+    { img: '/img/slide-1.png', title: 'Liquid Glass Design', desc: 'Win11 Blue · 14-layer depth shadow · physical spring-damper animation on every interaction' },
+    { img: '/img/slide-2.jpg', title: 'Full-Stack Blog System', desc: 'Rich text articles · comment threads · file downloads · real-time messaging with unread badges' },
+    { img: '/img/slide-3.jpg', title: 'Self-Hosted & Serverless', desc: 'Powered by Vercel edge functions · Supabase PostgreSQL · zero-cost deployment with automatic HTTPS' }
+  ];
+
+  var slideHTML = slides.map(function(s) {
+    return '<div class="carousel-slide" style="background-image:url(' + s.img + ')"><div class="carousel-slide-content"><h2>' + s.title + '</h2><p>' + s.desc + '</p></div></div>';
+  }).join('');
+
+  carousel.innerHTML = '<div class="carousel-track" id="carousel-track">' + slideHTML + '</div>'
+    + '<div class="carousel-dots" id="carousel-dots"></div>'
+    + '<button class="carousel-btn prev" onclick="carouselMove(-1)" title="Previous">'
+    + '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>'
+    + '</button>'
+    + '<button class="carousel-btn next" onclick="carouselMove(1)" title="Next">'
+    + '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>'
+    + '</button>';
   wrap.appendChild(carousel);
 
   if (Store.isAdmin() && Store.adminToken) {
