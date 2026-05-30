@@ -145,6 +145,7 @@ function canEditArticle(article) {
 }
 
 async function showCreateArticle() {
+  var isAdmin = Store.isAdmin();
   var dlOptions = '<option value="">无</option>';
   try {
     var dls = await API.get('/downloads');
@@ -153,19 +154,24 @@ async function showCreateArticle() {
   var html = ''
     + '<div class="form-group"><label>标题</label><input class="input input-glass" id="art-title" placeholder="文章标题"></div>'
     + '<div class="form-group"><label>内容</label><textarea class="input input-glass textarea" id="art-content" placeholder="文章内容" rows="8"></textarea></div>'
+    + (isAdmin ? '<div class="form-group"><label>摘要（可选）</label><input class="input input-glass" id="art-summary" placeholder="留空自动截取"></div>' : '')
     + '<div class="form-group"><label>关联下载（可选）</label><select class="input" id="art-dl" style="background:var(--bg-glass);color:var(--text-primary);border:1px solid var(--border-glass);border-radius:var(--radius-sm);padding:10px 14px;width:100%">'+dlOptions+'</select></div>'
-    + '<div class="form-group"><label>配图</label><input type="file" class="input" id="art-images" multiple accept="image/*"></div>';
+    + (isAdmin ? '<div class="form-group"><label>配图</label><input type="file" class="input" id="art-images" multiple accept="image/*"></div>' : '');
   showModal('发布文章', html, async function(){
     var title = document.getElementById('art-title').value.trim();
     var content = document.getElementById('art-content').value.trim();
-    var files = document.getElementById('art-images').files;
     var dl = document.getElementById('art-dl').value;
     if(!title||!content) throw new Error('标题和内容不能为空');
     var fd = new FormData();
     fd.append('title',title);
     fd.append('content',content);
     if(dl) fd.append('download_id',dl);
-    for(var i=0;i<files.length;i++) fd.append('images',files[i]);
+    if(isAdmin){
+      var summary = document.getElementById('art-summary');
+      if(summary) fd.append('summary', summary.value.trim());
+      var files = document.getElementById('art-images').files;
+      for(var i=0;i<files.length;i++) fd.append('images',files[i]);
+    }
     await API.upload('/articles',fd);
     toast('文章发布成功','success');
     navigate('home');

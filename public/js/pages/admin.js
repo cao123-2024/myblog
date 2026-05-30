@@ -77,7 +77,8 @@ function renderAdminPanel() {
   tabs.innerHTML = ''
     + '<button class="btn btn-glass btn-sm admin-tab active" data-tab="users" onclick="switchAdminTab(\'users\')">用户管理</button>'
     + (Store.isSuperAdmin() ? '<button class="btn btn-glass btn-sm admin-tab" data-tab="articles" onclick="switchAdminTab(\'articles\')">发布文章</button>' : '')
-    + '<button class="btn btn-glass btn-sm admin-tab" data-tab="wallpapers" onclick="switchAdminTab(\'wallpapers\')">壁纸管理</button>';
+    + '<button class="btn btn-glass btn-sm admin-tab" data-tab="wallpapers" onclick="switchAdminTab(\'wallpapers\')">壁纸管理</button>'
+    + '<button class="btn btn-glass btn-sm admin-tab" data-tab="upload-perms" onclick="switchAdminTab(\'upload-perms\')">上传权限</button>';
   wrap.appendChild(tabs);
 
   /* Tab content */
@@ -95,6 +96,7 @@ function switchAdminTab(tab) {
   var c = document.getElementById('admin-tab-content');
   if(tab === 'users') renderUserManager(c);
   else if(tab === 'wallpapers') renderWallpaperManager(c);
+  else if(tab === 'upload-perms') renderUploadPerms(c);
   else renderArticleCreator(c);
 }
 
@@ -345,5 +347,94 @@ async function deleteAdminWallpaper(id) {
     toast('已删除','success');
     loadAdminWallpapers();
   });
+}
+
+/* ===== Upload Permissions Manager ===== */
+function renderUploadPerms(container) {
+  container.innerHTML = ''
+    + '<div class="card-glass" style="padding:20px">'
+    + '<h3 style="font-size:1rem;font-weight:600;margin-bottom:16px">上传权限管理</h3>'
+    + '<div style="display:flex;gap:8px;margin-bottom:12px">'
+    + '<input class="input input-glass" id="up-search" placeholder="搜索用户名..." style="flex:1" oninput="loadUploadPerms()">'
+    + '</div>'
+    + '<div id="up-apply-list"><div class="text-center text-secondary p-4">加载中...</div></div>'
+    + '<h4 style="font-size:0.95rem;font-weight:600;margin-top:20px;margin-bottom:12px">所有用户</h4>'
+    + '<div id="up-user-list"><div class="text-center text-secondary p-4">加载中...</div></div>'
+    + '</div>';
+  loadUploadPerms();
+}
+
+async function loadUploadPerms() {
+  try {
+    var appliesData = await API.get('/admin/upload-applies');
+    var usersData = await API.get('/admin/users');
+    var applies = appliesData.applies || [];
+    var users = usersData.users || [];
+    var q = (document.getElementById('up-search')?.value || '').trim().toLowerCase();
+
+    var applyList = document.getElementById('up-apply-list');
+    if (applyList) {
+      var pendings = applies.filter(function(a){ return a.status === 'pending'; });
+      if (pendings.length === 0) {
+        applyList.innerHTML = '<p class="text-sm text-secondary">暂无待处理申请</p>';
+      } else {
+        var h = '';
+        pendings.forEach(function(a) {
+          if (!a.user) return;
+          if (q && !a.user.username.toLowerCase().includes(q) && !(a.user.nickname||'').toLowerCase().includes(q)) return;
+          h += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-subtle)">'
+            + '<span class="text-sm">'+escapeHtml(a.user.nickname||a.user.username)+' (@'+escapeHtml(a.user.username)+')</span>'
+            + '<span class="text-xs text-tertiary">'+formatDate(a.created_at)+'</span>'
+            + '<div class="flex gap-1">'
+            + '<button class="btn btn-primary btn-sm" style="padding:2px 10px;font-size:0.7rem" onclick="approveUpload('+a.id+')">批准</button>'
+            + '<button class="btn btn-glass btn-sm" style="padding:2px 10px;font-size:0.7rem" onclick="rejectUpload('+a.id+')">拒绝</button>'
+            + '</div></div>';
+        });
+        applyList.innerHTML = h || '<p class="text-sm text-secondary">无匹配结果</p>';
+      }
+    }
+
+    var userList = document.getElementById('up-user-list');
+    if (userList) {
+      var filtered = q ? users.filter(function(u){ return u.username.toLowerCase().includes(q) || (u.nickname||'').toLowerCase().includes(q); }) : users;
+      if (filtered.length === 0) { userList.innerHTML = '<p class="text-sm text-secondary">无匹配用户</p>'; return; }
+      var h = '';
+      filtered.forEach(function(u) {
+        var hasPerm = u.can_upload_images || u.role==='admin' || u.role==='semi_admin';
+        var btn = hasPerm
+          ? '<button class="btn btn-glass btn-sm" style="padding:2px 10px;font-size:0.7rem" onclick="revokeUpload('+u.id+')">取消权限</button>'
+          : '<button class="btn btn-primary btn-sm" style="padding:2px 10px;font-size:0.7rem" onclick="grantUpload('+u.id+')">开通权限</button>';
+        h += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-subtle)">'
+          + '<span class="text-sm">'+escapeHtml(u.nickname||u.username)+' (@'+escapeHtml(u.username)+')</span>'
+          + '<span class="text-xs">'+(hasPerm?'<span style="color:var(--blue)">可上传</span>':'<span class="text-tertiary">无权限</span>')+'</span>'
+          + btn
+          + '</div>';
+      });
+      userList.innerHTML = h;
+    }
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+async function approveUpload(applyId) {
+  await API.post('/admin/upload-apply/'+applyId+'/approve');
+  toast('已批准','success');
+  loadUploadPerms();
+}
+async function rejectUpload(applyId) {
+  await API.post('/admin/upload-apply/'+applyId+'/reject');
+  toast('已拒绝','info');
+  loadUploadPerms();
+}
+async function grantUpload(userId) {
+  await API.post('/admin/users/'+userId+'/grant-upload');
+  toast('已开通上传权限','success');
+  loadUploadPerms();
+}
+async function revokeUpload(userId) {
+  await API.post('/admin/users/'+userId+'/revoke-upload');
+  toast('已取消上传权限','success');
+  loadUploadPerms();
 }
 

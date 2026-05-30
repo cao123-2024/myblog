@@ -430,6 +430,15 @@
   .comment-avatar { width: 32px; height: 32px; }
   .comment-item { gap: 10px; padding: 12px 0; }
 }
+
+.settings-wp-item.selected {
+  border-color: var(--blue) !important;
+  box-shadow: 0 0 0 3px var(--blue-glow);
+}
+.settings-wp-item:hover {
+  border-color: rgba(255,255,255,0.4) !important;
+  transform: scale(1.03);
+}
 </style>
 </head>
 <body>
@@ -559,14 +568,14 @@
         <div id="nav-user-info" class="hidden flex items-center gap-2">
           <div class="comment-avatar" id="nav-avatar" style="width:32px;height:32px;cursor:pointer" onclick="navigate('profile')"></div>
           <span class="text-sm font-medium" id="nav-username" style="cursor:pointer" onclick="navigate('profile')"></span>
-          <button class="btn btn-glass btn-sm btn-icon" onclick="editProfileModal()" title="Settings" style="font-size:0.8rem">
+          <button class="btn btn-glass btn-sm btn-icon" onclick="openSettingsModal()" title="设置" style="font-size:0.8rem">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
           </button>
-          <button class="btn btn-glass btn-sm btn-icon" onclick="navigate('messages')" style="font-size:0.8rem;position:relative" title="Messages">
+          <button class="btn btn-glass btn-sm btn-icon" onclick="navigate('messages')" style="font-size:0.8rem;position:relative" title="消息">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
             <span id="msg-badge" style="position:absolute;top:-4px;right:-6px;width:16px;height:16px;border-radius:50%;background:var(--red,#ef4444);color:#fff;font-size:0.6rem;font-weight:700;display:none;align-items:center;justify-content:center;line-height:1">0</span>
           </button>
-          <button class="btn btn-glass btn-sm" onclick="Store.logout();showLoginScreen()" style="font-size:0.8rem">Logout</button>
+          <button class="btn btn-danger btn-sm" onclick="Store.logout();showLoginScreen()" style="font-size:0.8rem">退出</button>
         </div>
       </div>
     </div>

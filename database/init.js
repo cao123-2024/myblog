@@ -113,8 +113,10 @@ async function createWallpapersTables() {
     const sb = getSupabaseClient();
     const { error } = await sb.sql`CREATE TABLE IF NOT EXISTS wallpapers (id SERIAL PRIMARY KEY, name TEXT, url TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW())`;
     if (!error) console.log('[DB] wallpapers table auto-created');
+    await sb.sql`CREATE TABLE IF NOT EXISTS upload_applies (id SERIAL PRIMARY KEY, user_id INTEGER, status TEXT DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT NOW())`;
+    console.log('[DB] upload_applies table ready');
   } catch(e) {
-    console.error('[DB] wallpapers table init:', e.message);
+    console.error('[DB] tables init:', e.message);
   }
 }
 
