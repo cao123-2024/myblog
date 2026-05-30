@@ -118,181 +118,366 @@ function init_sudoku() {
   draw();
 }
 
-/* ===== Gomoku AI (Full Python移植) ===== */
+/* ===== Gomoku AI — 4 difficulty levels ===== */
+var _gomokuDifficulty = 'medium'; /* medium by default */
+
 function init_gomoku() {
-  document.getElementById('game-title').textContent = '五子棋 AI对战';
-  var size=15, board=[], turn=1, gameOver=false;
-  var CELL=34;
-  var canvas=document.createElement('canvas');
-  canvas.width=CELL*size+10; canvas.height=CELL*size+10;
-  canvas.style.cssText='border-radius:var(--radius-lg);background:#1a1a1a;cursor:pointer;max-width:100%';
-  var status=document.createElement('div');
-  status.style.cssText='margin:8px 0;text-align:center;font-weight:500';
-  status.textContent='你的回合 - 黑棋♟️';
+  var el = document.getElementById('game-container');
+  el.innerHTML = '';
+  el.style.cssText = 'display:flex;flex-direction:column;align-items:center';
 
-  function initBoard(){board=Array.from({length:size},function(){return Array(size).fill(0)});turn=1;gameOver=false;aiCount=[[],[]];for(var c=0;c<2;c++){aiCount[c]=[];for(var i=0;i<8;i++)aiCount[c][i]=0}record=[];for(var y=0;y<size;y++){record[y]=[];for(var x=0;x<size;x++)record[y][x]=[0,0,0,0]}status.textContent='你的回合 - 黑棋♟️';drawBoard()}
+  /* Difficulty picker screen */
+  var title = document.createElement('h3');
+  title.textContent = '选择难度';
+  title.style.cssText = 'font-size:1.1rem;font-weight:600;margin-bottom:16px';
+  el.appendChild(title);
 
-  var BORDER=5;
+  var diffs = [
+    { id: 'easy',    name: '简单',   desc: '随机+基础防守',      color: '#1A7F37' },
+    { id: 'medium',  name: '中等',   desc: '完整棋型识别 · 当前难度', color: '#BF7B00' },
+    { id: 'hard',    name: '困难',   desc: '2层前瞻搜索 · 堵冲四活三', color: '#CF222E' },
+    { id: 'master',  name: '大师',   desc: '4层深度搜索 · 人类无法战胜', color: '#8250DF' }
+  ];
 
-  function drawBoard(){
-    var ctx=canvas.getContext('2d');
-    var w=canvas.width, h=canvas.height;
-    ctx.fillStyle='#1a1a1a'; ctx.fillRect(0,0,w,h);
-    ctx.strokeStyle='rgba(255,255,255,0.12)';
-    for(var i=0;i<size;i++){
-      ctx.beginPath(); ctx.moveTo(BORDER, BORDER+i*CELL); ctx.lineTo(BORDER+(size-1)*CELL, BORDER+i*CELL); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(BORDER+i*CELL, BORDER); ctx.lineTo(BORDER+i*CELL, BORDER+(size-1)*CELL); ctx.stroke();
+  diffs.forEach(function(d){
+    var card = document.createElement('div');
+    card.className = 'card-glass';
+    card.style.cssText = 'width:340px;max-width:100%;padding:16px 20px;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap:14px;transition:all 0.25s var(--jelly-soft)';
+    card.onmouseenter = function(){ card.style.boxShadow = '0 0 0 2px ' + d.color + ', var(--shadow-07)'; card.style.transform = 'translateX(4px)'; };
+    card.onmouseleave = function(){ card.style.boxShadow = ''; card.style.transform = ''; };
+    card.onclick = function(){ startGomokuRound(d.id); };
+    card.innerHTML = '<div style="width:40px;height:40px;border-radius:50%;background:'+d.color+';display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.2rem;flex-shrink:0">'+(d.id==='easy'?'☆':d.id==='medium'?'⚡':d.id==='hard'?'🔥':'👑')+'</div>'
+      + '<div style="flex:1;min-width:0"><div style="font-weight:600;font-size:0.95rem">'+d.name+'</div><div class="text-xs text-secondary">'+d.desc+'</div></div>'
+      + '<span style="color:'+d.color+';font-size:1.2rem">▶</span>';
+    el.appendChild(card);
+  });
+}
+
+function startGomokuRound(diff) {
+  _gomokuDifficulty = diff;
+  document.getElementById('game-title').textContent = '五子棋 · ' + (diff==='easy'?'简单':diff==='medium'?'中等':diff==='hard'?'困难':'大师');
+
+  var size = 15, CELL = 34, BORDER = 5;
+  var board = [], turn = 1, gameOver = false, lastMove = null;
+
+  var canvas = document.createElement('canvas');
+  canvas.width = CELL * size + 10;
+  canvas.height = CELL * size + 10;
+  canvas.style.cssText = 'border-radius:var(--radius-lg);background:#1a1a1a;cursor:pointer;max-width:100%';
+
+  var status = document.createElement('div');
+  status.style.cssText = 'margin:8px 0;text-align:center;font-weight:500';
+  status.textContent = '你的回合 - 黑棋♟️';
+
+  /* Drawing */
+  function drawBoard() {
+    var ctx = canvas.getContext('2d');
+    var w = canvas.width, h = canvas.height;
+    ctx.fillStyle = '#1a1a1a'; ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    for (var i = 0; i < size; i++) {
+      ctx.beginPath(); ctx.moveTo(BORDER, BORDER + i * CELL); ctx.lineTo(BORDER + (size - 1) * CELL, BORDER + i * CELL); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(BORDER + i * CELL, BORDER); ctx.lineTo(BORDER + i * CELL, BORDER + (size - 1) * CELL); ctx.stroke();
     }
-    ctx.fillStyle='rgba(255,255,255,0.4)';
-    [[3,3],[3,7],[3,11],[7,3],[7,7],[7,11],[11,3],[11,7],[11,11]].forEach(function(p){
-      ctx.beginPath(); ctx.arc(BORDER+p[0]*CELL, BORDER+p[1]*CELL, 3, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    [[3,3],[3,7],[3,11],[7,3],[7,7],[7,11],[11,3],[11,7],[11,11]].forEach(function(p) {
+      ctx.beginPath(); ctx.arc(BORDER + p[0] * CELL, BORDER + p[1] * CELL, 3, 0, Math.PI * 2); ctx.fill();
     });
-    for(var y=0;y<size;y++)for(var x=0;x<size;x++){
-      if(!board[y][x])continue;
-      var cx=BORDER+x*CELL, cy=BORDER+y*CELL, r=CELL*0.42;
-      ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
-      var g=ctx.createRadialGradient(cx-r*0.3,cy-r*0.3,r*0.1,cx,cy,r);
-      if(board[y][x]===1){g.addColorStop(0,'#fff');g.addColorStop(1,'#888')}
-      else{g.addColorStop(0,'#555');g.addColorStop(1,'#111')}
-      ctx.fillStyle=g; ctx.fill();
+    for (var y = 0; y < size; y++) for (var x = 0; x < size; x++) {
+      if (!board[y][x]) continue;
+      var cx = BORDER + x * CELL, cy = BORDER + y * CELL, r = CELL * 0.42;
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      var g = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, r * 0.1, cx, cy, r);
+      if (board[y][x] === 1) { g.addColorStop(0, '#fff'); g.addColorStop(1, '#888'); }
+      else { g.addColorStop(0, '#555'); g.addColorStop(1, '#111'); }
+      ctx.fillStyle = g; ctx.fill();
+    }
+    if (lastMove) {
+      var lcx = BORDER + lastMove.x * CELL, lcy = BORDER + lastMove.y * CELL;
+      ctx.strokeStyle = '#FFD700'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(lcx, lcy, CELL * 0.44, 0, Math.PI * 2); ctx.stroke();
+      ctx.lineWidth = 1;
     }
   }
 
-  function checkWin(bx,by){
-    var me=board[by][bx], dirs=[[1,0],[0,1],[1,1],[1,-1]];
-    for(var d=0;d<4;d++){
-      var cnt=1;
-      for(var s=1;s<5;s++){var nx=bx+dirs[d][0]*s, ny=by+dirs[d][1]*s; if(nx>=0&&nx<size&&ny>=0&&ny<size&&board[ny][nx]===me)cnt++; else break}
-      for(var s=1;s<5;s++){var nx=bx-dirs[d][0]*s, ny=by-dirs[d][1]*s; if(nx>=0&&nx<size&&ny>=0&&ny<size&&board[ny][nx]===me)cnt++; else break}
-      if(cnt>=5)return true
+  function checkWin(bx, by) {
+    var me = board[by][bx], dirs = [[1,0],[0,1],[1,1],[1,-1]];
+    for (var d = 0; d < 4; d++) {
+      var cnt = 1;
+      for (var s = 1; s < 5; s++) { var nx = bx + dirs[d][0] * s, ny = by + dirs[d][1] * s; if (nx >= 0 && nx < size && ny >= 0 && ny < size && board[ny][nx] === me) cnt++; else break; }
+      for (var s = 1; s < 5; s++) { var nx = bx - dirs[d][0] * s, ny = by - dirs[d][1] * s; if (nx >= 0 && nx < size && ny >= 0 && ny < size && board[ny][nx] === me) cnt++; else break; }
+      if (cnt >= 5) return true;
     }
-    return false
+    return false;
   }
 
-  /* Full Python AI Engine */
-  var FIVE=7,L4=6,S4=5,L3=4,S3=3,L2=2,S2=1;
-  var record=[],aiCount=[[],[]],posScore=[],DIRS=[[1,0],[0,1],[1,1],[1,-1]];
-  for(var y=0;y<size;y++){record[y]=[];for(var x=0;x<size;x++)record[y][x]=[0,0,0,0]}
-  for(var c=0;c<2;c++){aiCount[c]=[];for(var i=0;i<8;i++)aiCount[c][i]=0}
-  posScore=[];for(var y=0;y<size;y++){posScore[y]=[];for(var x=0;x<size;x++){var cx2=size/2-1;posScore[y][x]=size-Math.max(Math.abs(x-cx2),Math.abs(y-cx2))}}
+  /* === AI Engines === */
+  var DIRS = [[1,0],[0,1],[1,1],[1,-1]];
+  var FIVE = 7, L4 = 6, S4 = 5, L3 = 4, S3 = 3, L2 = 2, S2 = 1;
 
-  function getLine(bx,by,di,you){
-    var line=Array(9).fill(you);
-    var tx=bx-5*DIRS[di][0], ty=by-5*DIRS[di][1];
-    for(var i=0;i<9;i++){tx+=DIRS[di][0];ty+=DIRS[di][1];if(tx>=0&&tx<size&&ty>=0&&ty<size)line[i]=board[ty][tx]}
-    return line
-  }
-
-  function setRecord(bx,by,left,right,di){
-    var tx=bx+(-5+left)*DIRS[di][0], ty=by+(-5+left)*DIRS[di][1];
-    for(var i=left;i<right;i++){tx+=DIRS[di][0];ty+=DIRS[di][1];if(ty>=0&&ty<size&&tx>=0&&tx<size)record[ty][tx][di]=1}
-  }
-
-  function analyzeLine(bx,by,di,me,you,cnt){
-    var line=getLine(bx,by,di,you);
-    var li=4,ri=4;
-    while(ri<8&&line[ri+1]===me)ri++;
-    while(li>0&&line[li-1]===me)li--;
-    var lr=li,rr=ri;
-    while(rr<8&&line[rr+1]!==you)rr++;
-    while(lr>0&&line[lr-1]!==you)lr--;
-    var range=rr-lr+1;
-    if(range<5){setRecord(bx,by,lr,rr,di);return}
-    setRecord(bx,by,li,ri,di);
-    var mRange=ri-li+1;
-    if(mRange===5){cnt[FIVE]++;return}
-    if(mRange===4){cnt[line[li-1]===0&&line[ri+1]===0?L4:S4]++;return}
-    if(mRange===3){
-      var le=line[li-1]===0, re=line[ri+1]===0;
-      if(le&&re){
-        if(range>5)cnt[L3]++; else cnt[S3]++;
-      }else if(le||re){cnt[S3]++}
-      return
-    }
-    if(mRange===2){
-      var le=line[li-1]===0, re=line[ri+1]===0, l2=line[li-2]===me, r2=line[ri+2]===me;
-      var leftThree=false, rightThree=false;
-      if(le&&l2){setRecord(bx,by,li-2,li-1,di);if(line[li-3]===0){if(re)cnt[L3]++;else cnt[S3]++;leftThree=true}else if(line[li-3]===you&&re){cnt[S3]++;leftThree=true}}
-      if(re&&r2){
-        if(line[ri+3]===me){setRecord(bx,by,ri+1,ri+2,di);cnt[S4]++;rightThree=true}
-        else if(line[ri+3]===0){if(le)cnt[L3]++;else cnt[S3]++;rightThree=true}
-        else if(le){cnt[S3]++;rightThree=true}
-      }
-      if(leftThree||rightThree)return;
-      if(le&&re)cnt[L2]++; else if(le||re)cnt[S2]++;
-      return
-    }
-    if(mRange===1){
-      var le=line[li-1]===0, re=line[ri+1]===0;
-      if(le&&line[li-2]===me&&line[li-3]===0&&line[ri+1]===you)cnt[S2]++;
-      if(re&&line[ri+2]===me&&line[ri+3]===0){if(le)cnt[L2]++;else cnt[S2]++}
-    }
-  }
-
-  function evaluate(board2,t){
-    for(var c=0;c<2;c++)for(var i=0;i<8;i++)aiCount[c][i]=0;
-    for(var y=0;y<size;y++)for(var x=0;x<size;x++)record[y][x]=[0,0,0,0];
-    for(var y=0;y<size;y++)for(var x=0;x<size;x++){
-      if(board2[y][x]===0)continue;
-      for(var d=0;d<4;d++){
-        if(record[y][x][d])continue;
-        var me=board2[y][x];
-        analyzeLine(x,y,d,me,me===1?2:1,aiCount[me-1]);
+  /* Get candidate moves: only empty cells near existing stones */
+  function getCandidates(radius) {
+    radius = radius || 2;
+    var near = [];
+    for (var y = 0; y < size; y++) { near[y] = []; for (var x = 0; x < size; x++) near[y][x] = false; }
+    var foundStone = false;
+    for (var y = 0; y < size; y++) for (var x = 0; x < size; x++) {
+      if (board[y][x] !== 0) {
+        foundStone = true;
+        for (var dy = -radius; dy <= radius; dy++) for (var dx = -radius; dx <= radius; dx++) {
+          var ny = y + dy, nx = x + dx;
+          if (nx >= 0 && nx < size && ny >= 0 && ny < size && board[ny][nx] === 0) near[ny][nx] = true;
+        }
       }
     }
-    if(aiCount[0][FIVE])return 10000; if(aiCount[1][FIVE])return -10000;
-    var my=aiCount[0], yr=aiCount[1];
-    if(yr[L4])return -9050; if(yr[S4])return -9040; if(my[L4])return 9030;
-    if(my[S4]&&my[L3])return 9020;
-    if(yr[L3]&&my[S4]===0)return -9010;
-    if(my[L3]>1&&yr[L3]===0&&yr[S3]===0)return 9000;
-    var mscore=0, oscore=0;
-    if(my[S4])mscore+=2000;
-    if(my[L3]>1)mscore+=500; else if(my[L3]>0)mscore+=100;
-    if(yr[L3]>1)oscore+=2000; else if(yr[L3]>0)oscore+=400;
-    if(my[S3])mscore+=my[S3]*10; if(yr[S3])oscore+=yr[S3]*10;
-    if(my[L2])mscore+=my[L2]*4; if(yr[L2])oscore+=yr[L2]*4;
-    if(my[S2])mscore+=my[S2]*4; if(yr[S2])oscore+=yr[S2]*4;
-    return mscore-oscore;
-  }
-
-  function aiMove(){
-    if(gameOver)return;
-    var bestScore=-Infinity, bx=-1, by=-1;
-    for(var y=0;y<size;y++)for(var x=0;x<size;x++){
-      if(board[y][x]!==0)continue;
-      board[y][x]=2;
-      var s=evaluate(board,1)+posScore[y][x]*0.1;
-      board[y][x]=0;
-      if(s>bestScore){bestScore=s;bx=x;by=y}
+    if (!foundStone) return [[7, 7]]; /* first move: center */
+    var result = [];
+    for (var y = 0; y < size; y++) for (var x = 0; x < size; x++) {
+      if (near[y][x]) result.push([x, y]);
     }
-    if(bx<0)return;
-    board[by][bx]=2; drawBoard();
-    if(checkWin(bx,by)){gameOver=true;status.textContent='AI赢了!🤖'; toast('AI赢了!','error'); return}
-    turn=1; status.textContent='你的回合 - 黑棋♟️';
+    return result;
   }
 
-  window.gomokuClick=function(e){
-    if(gameOver||turn!==1)return;
-    var rect=canvas.getBoundingClientRect();
-    var x=Math.round((e.clientX-rect.left-BORDER)/CELL), y=Math.round((e.clientY-rect.top-BORDER)/CELL);
-    if(x<0||x>=size||y<0||y>=size||board[y][x]!==0)return;
-    board[y][x]=1; drawBoard();
-    if(checkWin(x,y)){gameOver=true;status.textContent='你赢了!🎉'; toast('你赢了!','success'); return}
-    turn=2; status.textContent='AI思考中...';
-    setTimeout(aiMove,150);
+  /* === Evaluate engine (shared by all difficulties) === */
+  var evalRecord = [], evalCount = [[], []];
+  for (var y = 0; y < size; y++) { evalRecord[y] = []; for (var x = 0; x < size; x++) evalRecord[y][x] = [0, 0, 0, 0]; }
+  for (var c = 0; c < 2; c++) { evalCount[c] = []; for (var i = 0; i < 8; i++) evalCount[c][i] = 0; }
+
+  function getLine(bx, by, di, you) {
+    var line = Array(9).fill(you);
+    var tx = bx - 5 * DIRS[di][0], ty = by - 5 * DIRS[di][1];
+    for (var i = 0; i < 9; i++) { tx += DIRS[di][0]; ty += DIRS[di][1]; if (tx >= 0 && tx < size && ty >= 0 && ty < size) line[i] = board[ty][tx]; }
+    return line;
+  }
+  function setRecord(bx, by, left, right, di) {
+    var tx = bx + (-5 + left) * DIRS[di][0], ty = by + (-5 + left) * DIRS[di][1];
+    for (var i = left; i < right; i++) { tx += DIRS[di][0]; ty += DIRS[di][1]; if (ty >= 0 && ty < size && tx >= 0 && tx < size) evalRecord[ty][tx][di] = 1; }
+  }
+
+  function analyzeLine(bx, by, di, me, you, cnt) {
+    var line = getLine(bx, by, di, you);
+    var li = 4, ri = 4;
+    while (ri < 8 && line[ri + 1] === me) ri++;
+    while (li > 0 && line[li - 1] === me) li--;
+    var lr = li, rr = ri;
+    while (rr < 8 && line[rr + 1] !== you) rr++;
+    while (lr > 0 && line[lr - 1] !== you) lr--;
+    var range = rr - lr + 1;
+    if (range < 5) { setRecord(bx, by, lr, rr, di); return; }
+    setRecord(bx, by, li, ri, di);
+    var mRange = ri - li + 1;
+    if (mRange === 5) { cnt[FIVE]++; return; }
+    if (mRange === 4) { cnt[line[li - 1] === 0 && line[ri + 1] === 0 ? L4 : S4]++; return; }
+    if (mRange === 3) {
+      var le = line[li - 1] === 0, re = line[ri + 1] === 0;
+      if (le && re) { if (range > 5) cnt[L3]++; else cnt[S3]++; }
+      else if (le || re) { cnt[S3]++; }
+      return;
+    }
+    if (mRange === 2) {
+      var le = line[li - 1] === 0, re = line[ri + 1] === 0, l2 = line[li - 2] === me, r2 = line[ri + 2] === me;
+      var leftThree = false, rightThree = false;
+      if (le && l2) { setRecord(bx, by, li - 2, li - 1, di); if (line[li - 3] === 0) { if (re) cnt[L3]++; else cnt[S3]++; leftThree = true; } else if (line[li - 3] === you && re) { cnt[S3]++; leftThree = true; } }
+      if (re && r2) { if (line[ri + 3] === me) { setRecord(bx, by, ri + 1, ri + 2, di); cnt[S4]++; rightThree = true; } else if (line[ri + 3] === 0) { if (le) cnt[L3]++; else cnt[S3]++; rightThree = true; } else if (le) { cnt[S3]++; rightThree = true; } }
+      if (leftThree || rightThree) return;
+      if (le && re) cnt[L2]++; else if (le || re) cnt[S2]++;
+      return;
+    }
+    if (mRange === 1) {
+      var le = line[li - 1] === 0, re = line[ri + 1] === 0;
+      if (le && line[li - 2] === me && line[li - 3] === 0 && line[ri + 1] === you) cnt[S2]++;
+      if (re && line[ri + 2] === me && line[ri + 3] === 0) { if (le) cnt[L2]++; else cnt[S2]++; }
+    }
+  }
+
+  function fullEvaluate() {
+    for (var c = 0; c < 2; c++) for (var i = 0; i < 8; i++) evalCount[c][i] = 0;
+    for (var y = 0; y < size; y++) for (var x = 0; x < size; x++) evalRecord[y][x] = [0, 0, 0, 0];
+    for (var y = 0; y < size; y++) for (var x = 0; x < size; x++) {
+      if (board[y][x] === 0) continue;
+      for (var d = 0; d < 4; d++) {
+        if (evalRecord[y][x][d]) continue;
+        var me = board[y][x];
+        analyzeLine(x, y, d, me, me === 1 ? 2 : 1, evalCount[me - 1]);
+      }
+    }
+    if (evalCount[0][FIVE]) return 100000; if (evalCount[1][FIVE]) return -100000;
+    var my = evalCount[0], yr = evalCount[1];
+    if (yr[L4]) return -9050; if (yr[S4]) return -9040; if (my[L4]) return 9030;
+    if (my[S4] && my[L3]) return 9020;
+    if (yr[L3] && my[S4] === 0) return -9010;
+    if (my[L3] > 1 && yr[L3] === 0 && yr[S3] === 0) return 9000;
+    var mscore = 0, oscore = 0;
+    if (my[S4]) mscore += 2000;
+    if (my[L3] > 1) mscore += 500; else if (my[L3] > 0) mscore += 100;
+    if (yr[L3] > 1) oscore += 2000; else if (yr[L3] > 0) oscore += 400;
+    if (my[S3]) mscore += my[S3] * 10; if (yr[S3]) oscore += yr[S3] * 10;
+    if (my[L2]) mscore += my[L2] * 4; if (yr[L2]) oscore += yr[L2] * 4;
+    if (my[S2]) mscore += my[S2] * 4; if (yr[S2]) oscore += yr[S2] * 4;
+    return mscore - oscore;
+  }
+
+  function simpleEvaluate() {
+    /* Score each empty cell by counting consecutive stones in all 4 directions */
+    var bestScore = -Infinity, bx = 7, by = 7;
+    for (var y = 0; y < size; y++) for (var x = 0; x < size; x++) {
+      if (board[y][x] !== 0) continue;
+      var atkScore = 0, defScore = 0;
+      for (var d = 0; d < 4; d++) {
+        /* Attack: AI placing here */
+        var a3 = 0, a2 = 0, a1 = 0;
+        for (var s = 1; s <= 4; s++) { var nx = x + DIRS[d][0] * s, ny = y + DIRS[d][1] * s; if (nx >= 0 && nx < size && ny >= 0 && ny < size && board[ny][nx] === 2) a3++; else break; }
+        for (var s = 1; s <= 4; s++) { var nx = x - DIRS[d][0] * s, ny = y - DIRS[d][1] * s; if (nx >= 0 && nx < size && ny >= 0 && ny < size && board[ny][nx] === 2) a3++; else break; }
+        /* Defense: block player */
+        var d3 = 0;
+        for (var s = 1; s <= 4; s++) { var nx = x + DIRS[d][0] * s, ny = y + DIRS[d][1] * s; if (nx >= 0 && nx < size && ny >= 0 && ny < size && board[ny][nx] === 1) d3++; else break; }
+        for (var s = 1; s <= 4; s++) { var nx = x - DIRS[d][0] * s, ny = y - DIRS[d][1] * s; if (nx >= 0 && nx < size && ny >= 0 && ny < size && board[ny][nx] === 1) d3++; else break; }
+        atkScore += a3 * 10 + a2 * 2;
+        defScore += d3 >= 3 ? 100 : d3 >= 2 ? 20 : d3;
+      }
+      /* Center bonus */
+      var cx = size / 2 - 1;
+      var center = size - Math.max(Math.abs(x - cx), Math.abs(y - cx));
+      var score = Math.max(atkScore, defScore * 1.2) + center * 0.5 + Math.random() * 2;
+      if (score > bestScore) { bestScore = score; bx = x; by = y; }
+    }
+    return [bx, by];
+  }
+
+  /* === Depth-limited Minimax (Hard & Master) === */
+  var MAX_DEPTH = (diff === 'master' ? 4 : 2);
+  var posScore = [];
+  for (var y = 0; y < size; y++) { posScore[y] = []; for (var x = 0; x < size; x++) { var cx2 = size / 2 - 1; posScore[y][x] = size - Math.max(Math.abs(x - cx2), Math.abs(y - cx2)); } }
+
+  function minimax(depth, alpha, beta, maximizing) {
+    /* Check terminal */
+    if (depth === 0) {
+      return fullEvaluate();
+    }
+    var candidates = getCandidates(2);
+    /* Sort by quick heuristic: prefer center */
+    candidates.sort(function(a, b) {
+      return posScore[b[1]][b[0]] - posScore[a[1]][a[0]];
+    });
+    /* Limit candidates for performance */
+    if (candidates.length > (diff === 'master' ? 25 : 15)) {
+      candidates = candidates.slice(0, (diff === 'master' ? 25 : 15));
+    }
+
+    if (maximizing) {
+      var best = -Infinity;
+      for (var i = 0; i < candidates.length; i++) {
+        var x = candidates[i][0], y = candidates[i][1];
+        board[y][x] = 2;
+        var val = minimax(depth - 1, alpha, beta, false);
+        board[y][x] = 0;
+        if (val > best) best = val;
+        if (best > alpha) alpha = best;
+        if (alpha >= beta) break;
+      }
+      return best;
+    } else {
+      var best = Infinity;
+      for (var i = 0; i < candidates.length; i++) {
+        var x = candidates[i][0], y = candidates[i][1];
+        board[y][x] = 1;
+        var val = minimax(depth - 1, alpha, beta, true);
+        board[y][x] = 0;
+        if (val < best) best = val;
+        if (best < beta) beta = best;
+        if (alpha >= beta) break;
+      }
+      return best;
+    }
+  }
+
+  function aiMoveHard(depthOverride) {
+    var maxDepth = depthOverride || MAX_DEPTH;
+    var candidates = getCandidates(2);
+    if (candidates.length === 0) return;
+    candidates.sort(function(a, b) { return posScore[b[1]][b[0]] - posScore[a[1]][a[0]]; });
+    if (candidates.length > 20) candidates = candidates.slice(0, 20);
+
+    var bestScore = -Infinity, bx = -1, by = -1;
+    for (var i = 0; i < candidates.length; i++) {
+      var x = candidates[i][0], y = candidates[i][1];
+      board[y][x] = 2;
+      var val = minimax(maxDepth, -Infinity, Infinity, false);
+      board[y][x] = 0;
+      if (val > bestScore) { bestScore = val; bx = x; by = y; }
+    }
+    if (bx < 0) return;
+    board[by][bx] = 2;
+    lastMove = { x: bx, y: by };
+    drawBoard();
+    if (checkWin(bx, by)) { gameOver = true; status.textContent = 'AI赢了!🤖'; toast('AI赢了!', 'error'); return; }
+    turn = 1; status.textContent = '你的回合 - 黑棋♟️';
+  }
+
+  function aiMoveMedium() {
+    if (gameOver) return;
+    var bestScore = -Infinity, bx = -1, by = -1;
+    for (var y = 0; y < size; y++) for (var x = 0; x < size; x++) {
+      if (board[y][x] !== 0) continue;
+      board[y][x] = 2;
+      var s = fullEvaluate() + posScore[y][x] * 0.1;
+      board[y][x] = 0;
+      if (s > bestScore) { bestScore = s; bx = x; by = y; }
+    }
+    if (bx < 0) return;
+    board[by][bx] = 2;
+    lastMove = { x: bx, y: by };
+    drawBoard();
+    if (checkWin(bx, by)) { gameOver = true; status.textContent = 'AI赢了!🤖'; toast('AI赢了!', 'error'); return; }
+    turn = 1; status.textContent = '你的回合 - 黑棋♟️';
+  }
+
+  function aiMoveEasy() {
+    if (gameOver) return;
+    var move = simpleEvaluate();
+    var bx = move[0], by = move[1];
+    board[by][bx] = 2;
+    lastMove = { x: bx, y: by };
+    drawBoard();
+    if (checkWin(bx, by)) { gameOver = true; status.textContent = 'AI赢了!🤖'; toast('AI赢了!', 'error'); return; }
+    turn = 1; status.textContent = '你的回合 - 黑棋♟️';
+  }
+
+  function aiMove() {
+    if (diff === 'easy') aiMoveEasy();
+    else if (diff === 'hard' || diff === 'master') aiMoveHard();
+    else aiMoveMedium();
+  }
+
+  window.gomokuClick = function(e) {
+    if (gameOver || turn !== 1) return;
+    var rect = canvas.getBoundingClientRect();
+    var x = Math.round((e.clientX - rect.left - BORDER) / CELL), y = Math.round((e.clientY - rect.top - BORDER) / CELL);
+    if (x < 0 || x >= size || y < 0 || y >= size || board[y][x] !== 0) return;
+    board[y][x] = 1; lastMove = { x: x, y: y }; drawBoard();
+    if (checkWin(x, y)) { gameOver = true; status.textContent = '你赢了!🎉'; toast('你赢了!', 'success'); return; }
+    turn = 2; status.textContent = 'AI思考中...';
+    setTimeout(aiMove, diff === 'master' ? 50 : diff === 'hard' ? 100 : 150);
   };
+
   canvas.addEventListener('click', window.gomokuClick);
 
-  var el=document.getElementById('game-container');
-  el.innerHTML='';
-  el.style.cssText='display:flex;flex-direction:column;align-items:center';
-  el.appendChild(status);
-  var btnWrap=document.createElement('div');
-  btnWrap.style.cssText='text-align:center;margin:6px 0';
-  btnWrap.innerHTML='<button class="btn btn-glass btn-sm" onclick="init_gomoku()">新游戏</button>';
-  el.appendChild(btnWrap);
-  el.appendChild(canvas);
+  function initBoard() {
+    board = Array.from({ length: size }, function() { return Array(size).fill(0); });
+    turn = 1; gameOver = false; lastMove = null;
+    status.textContent = '你的回合 - 黑棋♟️';
+    drawBoard();
+  }
+
+  var el2 = document.getElementById('game-container');
+  el2.innerHTML = '';
+  el2.style.cssText = 'display:flex;flex-direction:column;align-items:center';
+  el2.appendChild(status);
+  var btnWrap = document.createElement('div');
+  btnWrap.style.cssText = 'text-align:center;margin:6px 0;display:flex;gap:8px';
+  btnWrap.innerHTML = '<button class="btn btn-glass btn-sm" onclick="init_gomoku()">选择难度</button><button class="btn btn-glass btn-sm" onclick="startGomokuRound(\'' + diff + '\')">新游戏</button>';
+  el2.appendChild(btnWrap);
+  el2.appendChild(canvas);
   initBoard();
 }
 
