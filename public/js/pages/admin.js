@@ -76,7 +76,8 @@ function renderAdminPanel() {
   tabs.style.cssText = 'display:flex;gap:8px;margin-bottom:24px';
   tabs.innerHTML = ''
     + '<button class="btn btn-glass btn-sm admin-tab active" data-tab="users" onclick="switchAdminTab(\'users\')">用户管理</button>'
-    + (Store.isSuperAdmin() ? '<button class="btn btn-glass btn-sm admin-tab" data-tab="articles" onclick="switchAdminTab(\'articles\')">发布文章</button>' : '');
+    + (Store.isSuperAdmin() ? '<button class="btn btn-glass btn-sm admin-tab" data-tab="articles" onclick="switchAdminTab(\'articles\')">发布文章</button>' : '')
+    + '<button class="btn btn-glass btn-sm admin-tab" data-tab="wallpapers" onclick="switchAdminTab(\'wallpapers\')">壁纸管理</button>';
   wrap.appendChild(tabs);
 
   /* Tab content */
@@ -93,6 +94,7 @@ function switchAdminTab(tab) {
   document.querySelectorAll('.admin-tab').forEach(function(b){ b.classList.toggle('active', b.dataset.tab===tab); });
   var c = document.getElementById('admin-tab-content');
   if(tab === 'users') renderUserManager(c);
+  else if(tab === 'wallpapers') renderWallpaperManager(c);
   else renderArticleCreator(c);
 }
 
@@ -262,6 +264,86 @@ function editUserTag(userId, currentTag, e){
     await API.put('/admin/users/'+userId+'/tag',{tag:tag});
     toast('备注已更新','success');
     loadAdminUsers();
+  });
+}
+
+/* ===== Wallpaper Manager ===== */
+function renderWallpaperManager(container) {
+  container.innerHTML = ''
+    + '<div class="card-glass" style="padding:20px">'
+    + '<h3 style="font-size:1rem;font-weight:600;margin-bottom:16px">壁纸库</h3>'
+    + '<div id="wp-dropzone" style="border:2px dashed var(--border-glass);border-radius:var(--radius-lg);padding:32px;text-align:center;margin-bottom:16px;cursor:pointer;transition:all 0.2s ease">'
+    + '<p class="text-secondary" id="wp-drop-text">拖拽图片到这里或点击上传</p>'
+    + '<input type="file" id="wp-file-input" multiple accept="image/*" style="display:none">'
+    + '<div id="wp-upload-status" class="text-sm" style="color:var(--blue);margin-top:8px;display:none"></div>'
+    + '</div>'
+    + '<div id="admin-wp-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px"><div class="text-center text-secondary p-4">加载中...</div></div>'
+    + '</div>';
+  setupWallpaperDropzone();
+  loadAdminWallpapers();
+}
+
+function setupWallpaperDropzone() {
+  var dz = document.getElementById('wp-dropzone');
+  var input = document.getElementById('wp-file-input');
+  dz.onclick = function() { input.click(); };
+  input.onchange = function() { handleWallpaperFiles(input.files); };
+
+  dz.ondragover = function(e) { e.preventDefault(); dz.style.borderColor = 'var(--blue)'; dz.style.background = 'var(--bg-glass-hover)'; };
+  dz.ondragleave = function(e) { dz.style.borderColor = 'var(--border-glass)'; dz.style.background = 'transparent'; };
+  dz.ondrop = function(e) { e.preventDefault(); dz.style.borderColor = 'var(--border-glass)'; dz.style.background = 'transparent'; handleWallpaperFiles(e.dataTransfer.files); };
+}
+
+async function handleWallpaperFiles(files) {
+  if (!files || files.length === 0) return;
+  var status = document.getElementById('wp-upload-status');
+  status.style.display = 'block';
+  var dropText = document.getElementById('wp-drop-text');
+
+  for (var i = 0; i < files.length; i++) {
+    var f = files[i];
+    if (!/^image\//.test(f.type)) continue;
+    var sizeMB = (f.size / 1024 / 1024).toFixed(1);
+    status.textContent = '上传中: ' + f.name + ' (' + sizeMB + 'MB) ...';
+    try {
+      var fd = new FormData();
+      fd.append('file', f);
+      await API.upload('/wallpapers/upload', fd);
+      status.textContent = f.name + ' 上传成功';
+    } catch(e) {
+      status.textContent = f.name + ' 失败: ' + e.message;
+    }
+  }
+  dropText.textContent = '拖拽图片到这里或点击上传';
+  setTimeout(function() { status.style.display = 'none'; }, 2000);
+  loadAdminWallpapers();
+}
+
+async function loadAdminWallpapers() {
+  try {
+    var data = await API.get('/wallpapers');
+    var wps = data.wallpapers || [];
+    var list = document.getElementById('admin-wp-list');
+    if (!list) return;
+    if (wps.length === 0) { list.innerHTML = '<div class="text-center text-secondary p-4">暂无壁纸</div>'; return; }
+    var html = '';
+    wps.forEach(function(w) {
+      html += '<div style="position:relative;aspect-ratio:16/9;border-radius:10px;background-image:url('+escapeHtml(w.url)+');background-size:cover;background-position:center;overflow:hidden">'
+        + '<button onclick="deleteAdminWallpaper('+w.id+')" style="position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,0.6);border:none;color:#fff;cursor:pointer;font-size:14px;line-height:24px;text-align:center" title="删除">&times;</button>'
+        + '</div>';
+    });
+    list.innerHTML = html;
+  } catch(e) {
+    var list = document.getElementById('admin-wp-list');
+    if (list) list.innerHTML = '<div class="p-4 text-center" style="color:#CF222E">加载失败: '+e.message+'</div>';
+  }
+}
+
+async function deleteAdminWallpaper(id) {
+  showConfirm('删除壁纸','确定删除此壁纸吗？', async function() {
+    await API.delete('/wallpapers/' + id);
+    toast('已删除','success');
+    loadAdminWallpapers();
   });
 }
 

@@ -109,17 +109,29 @@ async function createAnnouncementsTable() {
 }
 
 async function createWallpapersTables() {
-  const sql = `
-    CREATE TABLE IF NOT EXISTS wallpapers (id SERIAL PRIMARY KEY, name TEXT, url TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW());
-    ALTER TABLE users ADD COLUMN IF NOT EXISTS bg_image TEXT DEFAULT '';
-    ALTER TABLE users ALTER COLUMN bg_image SET DEFAULT '';
-  `;
   try {
     const sb = getSupabaseClient();
     const { error } = await sb.sql`CREATE TABLE IF NOT EXISTS wallpapers (id SERIAL PRIMARY KEY, name TEXT, url TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW())`;
     if (!error) console.log('[DB] wallpapers table auto-created');
   } catch(e) {
     console.error('[DB] wallpapers table init:', e.message);
+  }
+}
+
+async function enableRlsOnAllTables() {
+  const tables = ['users','articles','comments','friends','messages','downloads','verify_codes','announcements','wallpapers'];
+  for (const t of tables) {
+    try {
+      const sb = getSupabaseClient();
+      const { error } = await sb.sql('ALTER TABLE ' + t + ' ENABLE ROW LEVEL SECURITY');
+      if (!error) {
+        console.log('[DB] RLS enabled on ' + t);
+      } else {
+        console.error('[DB] RLS ' + t + ': ' + JSON.stringify(error));
+      }
+    } catch(e) {
+      if (!e.message.includes('already enabled')) console.error('[DB] RLS ' + t + ': ' + e.message);
+    }
   }
 }
 
@@ -134,6 +146,7 @@ async function sbInitDb() {
 
   await createAnnouncementsTable();
   await createWallpapersTables();
+  await enableRlsOnAllTables();
 
   supabaseReady = true;
 }

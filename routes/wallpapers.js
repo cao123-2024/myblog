@@ -1,8 +1,33 @@
 const express = require('express');
+const multer = require('multer');
 const { db } = require('../database/db');
 const { auth, adminOnly } = require('../middleware/auth');
 
 const router = express.Router();
+
+const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const STORAGE_BASE = SUPABASE_URL + '/storage/v1/object/public/wallpapers/';
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+
+async function uploadToStorage(filename, buffer, mimetype) {
+  const resp = await fetch(SUPABASE_URL + '/storage/v1/object/wallpapers/' + filename, {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + SUPABASE_KEY,
+      'apikey': SUPABASE_KEY,
+      'Content-Type': mimetype || 'application/octet-stream',
+      'x-upsert': 'true'
+    },
+    body: buffer
+  });
+  if (!resp.ok) {
+    const txt = await resp.text();
+    throw new Error('Storage upload failed: ' + resp.status + ' ' + txt.slice(0, 200));
+  }
+  return STORAGE_BASE + filename;
+}
 
 router.get('/', auth, async (req, res) => {
   try {
@@ -16,25 +41,29 @@ router.get('/', auth, async (req, res) => {
 
 router.post('/set', auth, async (req, res) => {
   const { url } = req.body;
-  if (!url) return res.status(400).json({ error: '请提供壁纸URL' });
-  await db('users').update(req.user.id, { bg_image: url });
+  if (!url && url !== '') return res.status(400).json({ error: '请提供壁纸URL' });
+  await db('users').update(req.user.id, { bg_image: url || '' });
   const updated = await db('users').getById(req.user.id);
   const { password: _, ...safe } = updated;
   res.json({ user: safe });
 });
 
-router.post('/upload', auth, adminOnly, async (req, res) => {
-  const { name, url } = req.body;
-  if (!url) return res.status(400).json({ error: '请提供壁纸URL' });
+router.post('/upload', auth, adminOnly, upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: '请选择文件' });
   try {
+    const safeName = Date.now() + '-' + req.file.originalname.replace(/[()\s]/g, '-');
+    let buffer = req.file.buffer;
+    let mime = req.file.mimetype;
+
+    const url = await uploadToStorage(safeName, buffer, mime);
     const w = await db('wallpapers').insert({
-      name: name || 'wallpaper',
+      name: req.file.originalname,
       url: url,
       created_at: new Date().toISOString()
     });
     res.json({ wallpaper: w });
   } catch (e) {
-    res.status(500).json({ error: '添加壁纸失败: ' + e.message });
+    res.status(500).json({ error: '壁纸上传统失败: ' + e.message });
   }
 });
 
