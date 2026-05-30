@@ -405,20 +405,45 @@ function startGomokuRound(diff) {
     return [bx, by];
   }
 
-  /* Minimax with Alpha-Beta */
+  /* Minimax with Alpha-Beta — threat-aware */
   var MAX_D = (diff === 'master' ? 4 : 2);
 
-  function minimax(depth, alpha, beta, maxi) {
-    if (depth === 0) return fullEvaluate();
-    var cands = getCandidates(2);
-    cands.sort(function(a, b) { return posScore[b[1]][b[0]] - posScore[a[1]][a[0]]; });
-    var limit = (diff === 'master' ? 25 : 15);
-    if (cands.length > limit) cands = cands.slice(0, limit);
+  /* Threat score for candidate sorting */
+  function threatScore(x, y) {
+    var sc = 0;
+    for (var d = 0; d < 4; d++) {
+      var myA = 0, myB = 0, yrA = 0, yrB = 0;
+      for (var s = 1; s <= 4; s++) { var nx = x + DIRS[d][0] * s, ny = y + DIRS[d][1] * s; if (nx >= 0 && nx < SZ && ny >= 0 && ny < SZ && board[ny][nx] === 2) myA++; else break; }
+      for (var s = 1; s <= 4; s++) { var nx = x - DIRS[d][0] * s, ny = y - DIRS[d][1] * s; if (nx >= 0 && nx < SZ && ny >= 0 && ny < SZ && board[ny][nx] === 2) myB++; else break; }
+      for (var s = 1; s <= 4; s++) { var nx = x + DIRS[d][0] * s, ny = y + DIRS[d][1] * s; if (nx >= 0 && nx < SZ && ny >= 0 && ny < SZ && board[ny][nx] === 1) yrA++; else break; }
+      for (var s = 1; s <= 4; s++) { var nx = x - DIRS[d][0] * s, ny = y - DIRS[d][1] * s; if (nx >= 0 && nx < SZ && ny >= 0 && ny < SZ && board[ny][nx] === 1) yrB++; else break; }
+      if (myA + myB >= 4 || yrA + yrB >= 4) return 1000000;
+      if (yrA + yrB >= 3) return 500000;
+      sc += (myA + myB) * 50 + (yrA + yrB) * 30;
+    }
+    return sc;
+  }
 
+  function sortCandidates(cands, limit) {
+    for (var i = 0; i < cands.length; i++) cands[i].push(threatScore(cands[i][0], cands[i][1]));
+    cands.sort(function(a, b) { return b[2] - a[2] || posScore[b[1]][b[0]] - posScore[a[1]][a[0]]; });
+    if (limit && cands.length > limit) cands = cands.slice(0, limit);
+    return cands;
+  }
+
+  function minimax(depth, alpha, beta, maxi) {
+    if (depth === 0) {
+      var ev = fullEvaluate();
+      if (ev >= 100000) return ev + depth; if (ev <= -100000) return ev - depth;
+      return ev;
+    }
+    var cands = getCandidates(2);
+    cands = sortCandidates(cands, diff === 'master' ? 40 : 25);
     if (maxi) {
       var best = -Infinity;
       for (var i = 0; i < cands.length; i++) {
         var x = cands[i][0], y = cands[i][1];
+        if (board[y][x] !== 0) continue;
         board[y][x] = 2;
         var v = minimax(depth - 1, alpha, beta, false);
         board[y][x] = 0;
@@ -431,6 +456,7 @@ function startGomokuRound(diff) {
       var best = Infinity;
       for (var i = 0; i < cands.length; i++) {
         var x = cands[i][0], y = cands[i][1];
+        if (board[y][x] !== 0) continue;
         board[y][x] = 1;
         var v = minimax(depth - 1, alpha, beta, true);
         board[y][x] = 0;
@@ -455,15 +481,16 @@ function startGomokuRound(diff) {
     } else if (diff === 'hard' || diff === 'master') {
       var cands = getCandidates(2);
       if (cands.length === 0) return;
-      cands.sort(function(a, b) { return posScore[b[1]][b[0]] - posScore[a[1]][a[0]]; });
-      if (cands.length > 20) cands = cands.slice(0, 20);
+      cands = sortCandidates(cands, 50);
       var bestScore = -Infinity, bx = -1, by = -1;
       for (var i = 0; i < cands.length; i++) {
         var x = cands[i][0], y = cands[i][1];
+        if (board[y][x] !== 0) continue;
         board[y][x] = 2;
         var v = minimax(MAX_D, -Infinity, Infinity, false);
         board[y][x] = 0;
         if (v > bestScore) { bestScore = v; bx = x; by = y; }
+        if (bestScore >= 100000) break;
       }
       if (bx < 0) return;
       board[by][bx] = 2;
