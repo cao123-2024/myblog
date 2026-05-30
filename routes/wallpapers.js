@@ -1,78 +1,78 @@
 const express = require('express');
 const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const { db } = require('../database/db');
 const { auth, adminOnly } = require('../middleware/auth');
 
 const router = express.Router();
 
-const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const STORAGE_BASE = SUPABASE_URL + '/storage/v1/object/public/wallpapers/';
+const isVercel = process.env.VERCEL === '1';
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+const WP_DIR = isVercel
+  ? path.join('/tmp', 'wallpapers')
+  : path.join(__dirname, '..', 'public', 'img', 'wallpapers');
+if (!fs.existsSync(WP_DIR)) fs.mkdirSync(WP_DIR, { recursive: true });
 
-async function uploadToStorage(filename, buffer, mimetype) {
-  const resp = await fetch(SUPABASE_URL + '/storage/v1/object/wallpapers/' + filename, {
-    method: 'POST',
-    headers: {
-      'Authorization': 'Bearer ' + SUPABASE_KEY,
-      'apikey': SUPABASE_KEY,
-      'Content-Type': mimetype || 'application/octet-stream',
-      'x-upsert': 'true'
-    },
-    body: buffer
-  });
-  if (!resp.ok) {
-    const txt = await resp.text();
-    throw new Error('Storage upload failed: ' + resp.status + ' ' + txt.slice(0, 200));
-  }
-  return STORAGE_BASE + filename;
-}
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: WP_DIR,
+    filename: function(req, file, cb) {
+      cb(null, Date.now() + '-' + file.originalname.replace(/[()\s]/g, '-'));
+    }
+  }),
+  limits: { fileSize: 10 * 1024 * 1024 }
+});
 
-router.get('/', auth, async (req, res) => {
+router.get('/', auth, async function(req, res) {
   try {
-    const all = await db('wallpapers').all();
-    all.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    var all = await db('wallpapers').all();
+    all.sort(function(a, b) { return new Date(b.created_at) - new Date(a.created_at); });
     res.json({ wallpapers: all });
   } catch (e) {
     res.json({ wallpapers: [] });
   }
 });
 
-router.post('/set', auth, async (req, res) => {
-  const { url } = req.body;
-  if (!url && url !== '') return res.status(400).json({ error: '请提供壁纸URL' });
+router.post('/set', auth, async function(req, res) {
+  var url = req.body.url;
+  if (url === undefined) return res.status(400).json({ error: 'URL required' });
   await db('users').update(req.user.id, { bg_image: url || '' });
-  const updated = await db('users').getById(req.user.id);
-  const { password: _, ...safe } = updated;
+  var updated = await db('users').getById(req.user.id);
+  var safe = Object.assign({}, updated);
+  delete safe.password;
   res.json({ user: safe });
 });
 
-router.post('/upload', auth, adminOnly, upload.single('file'), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: '请选择文件' });
+router.post('/upload', auth, adminOnly, upload.single('file'), async function(req, res) {
+  if (!req.file) return res.status(400).json({ error: 'No file selected' });
   try {
-    const safeName = Date.now() + '-' + req.file.originalname.replace(/[()\s]/g, '-');
-    let buffer = req.file.buffer;
-    let mime = req.file.mimetype;
-
-    const url = await uploadToStorage(safeName, buffer, mime);
-    const w = await db('wallpapers').insert({
+    var url = isVercel
+      ? '/api/wallpapers/img/' + req.file.filename
+      : '/img/wallpapers/' + req.file.filename;
+    var w = await db('wallpapers').insert({
       name: req.file.originalname,
       url: url,
       created_at: new Date().toISOString()
     });
     res.json({ wallpaper: w });
   } catch (e) {
-    res.status(500).json({ error: '壁纸上传统失败: ' + e.message });
+    res.status(500).json({ error: 'Upload failed: ' + e.message });
   }
 });
 
-router.delete('/:id', auth, adminOnly, async (req, res) => {
+router.get('/img/:filename', function(req, res) {
+  var fp = path.join(WP_DIR, req.params.filename);
+  if (!fs.existsSync(fp)) return res.status(404).end();
+  res.sendFile(fp);
+});
+
+router.delete('/:id', auth, adminOnly, async function(req, res) {
   try {
     await db('wallpapers').delete(parseInt(req.params.id));
     res.json({ success: true });
   } catch (e) {
-    res.status(500).json({ error: '删除失败' });
+    res.status(500).json({ error: 'Delete failed' });
   }
 });
 
