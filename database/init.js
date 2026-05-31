@@ -150,16 +150,18 @@ async function createWallpapersTables() {
 
   if (ok) {
     console.log('[DB] all extra tables ready');
-    return;
+    return true;
   }
 
   console.error('========================================');
-  console.error('[DB] 部分表可能未创建成功。请在 Supabase SQL Editor 执行:');
-  console.error('CREATE TABLE IF NOT EXISTS upload_applies (id SERIAL PRIMARY KEY, user_id INTEGER, status TEXT DEFAULT \'pending\', created_at TIMESTAMPTZ DEFAULT NOW());');
-  console.error('CREATE TABLE IF NOT EXISTS game_queue (id SERIAL PRIMARY KEY, user_id INTEGER, status TEXT DEFAULT \'waiting\', matched_with INTEGER, room_id INTEGER, created_at TIMESTAMPTZ DEFAULT NOW());');
-  console.error('CREATE TABLE IF NOT EXISTS game_rooms (id SERIAL PRIMARY KEY, player1 INTEGER, player2 INTEGER, game_type TEXT DEFAULT \'gomoku\', turn INTEGER DEFAULT 1, board TEXT, status TEXT DEFAULT \'active\', winner INTEGER, p1_heartbeat TIMESTAMPTZ, p2_heartbeat TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW());');
-  console.error('CREATE TABLE IF NOT EXISTS game_invites (id SERIAL PRIMARY KEY, from_user INTEGER, to_user INTEGER, status TEXT DEFAULT \'pending\', created_at TIMESTAMPTZ DEFAULT NOW());');
+  console.error('[DB] 请在 Supabase SQL Editor 中执行以下SQL（表未建会导致游戏/权限功能不可用）:');
+  console.error("CREATE TABLE IF NOT EXISTS upload_applies (id SERIAL PRIMARY KEY, user_id INTEGER, status TEXT DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT NOW());");
+  console.error("CREATE TABLE IF NOT EXISTS game_queue (id SERIAL PRIMARY KEY, user_id INTEGER, status TEXT DEFAULT 'waiting', matched_with INTEGER, room_id INTEGER, created_at TIMESTAMPTZ DEFAULT NOW());");
+  console.error("CREATE TABLE IF NOT EXISTS game_rooms (id SERIAL PRIMARY KEY, player1 INTEGER, player2 INTEGER, game_type TEXT DEFAULT 'gomoku', turn INTEGER DEFAULT 1, board TEXT, status TEXT DEFAULT 'active', winner INTEGER, p1_heartbeat TIMESTAMPTZ, p2_heartbeat TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW());");
+  console.error("CREATE TABLE IF NOT EXISTS game_invites (id SERIAL PRIMARY KEY, from_user INTEGER, to_user INTEGER, status TEXT DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT NOW());");
+  console.error("CREATE TABLE IF NOT EXISTS ban_appeals (id SERIAL PRIMARY KEY, user_id INTEGER, reason TEXT, status TEXT DEFAULT 'pending', admin_msg TEXT, reduced_minutes INTEGER DEFAULT 0, created_at TIMESTAMPTZ DEFAULT NOW());");
   console.error('========================================');
+  return false;
 }
 
 async function enableRlsOnAllTables() {
@@ -188,11 +190,11 @@ async function sbInitDb() {
     });
   }
 
-  supabaseReady = true;
-
+  await createWallpapersTables();
   createAnnouncementsTable().catch(function(e){ console.error('[DB] announcements:', e.message); });
-  createWallpapersTables().catch(function(e){ console.error('[DB] wallpapers:', e.message); });
   enableRlsOnAllTables().catch(function(e){ console.error('[DB] RLS:', e.message); });
+
+  supabaseReady = true;
 }
 
 function db(tableName) {

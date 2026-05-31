@@ -46,7 +46,7 @@ router.put('/profile', auth, upload.fields([
   { name: 'avatar', maxCount: 1 },
   { name: 'bg_image', maxCount: 1 }
 ]), async (req, res) => {
-  const { nickname, bio, avatar_data } = req.body;
+  const { nickname, bio, avatar_data, bg_image_data } = req.body;
   const updates = {};
   if (nickname) updates.nickname = nickname;
   if (bio !== undefined) updates.bio = bio;
@@ -55,7 +55,9 @@ router.put('/profile', auth, upload.fields([
   } else if (req.files && req.files.avatar) {
     updates.avatar = '/uploads/' + req.files.avatar[0].filename;
   }
-  if (req.files && req.files.bg_image) {
+  if (bg_image_data) {
+    updates.bg_image = bg_image_data;
+  } else if (req.files && req.files.bg_image) {
     updates.bg_image = '/uploads/' + req.files.bg_image[0].filename;
   }
 

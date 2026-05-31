@@ -134,15 +134,19 @@ router.post('/upload-apply', auth, async (req, res) => {
   if (req.user.can_upload_images || req.user.role === 'admin' || req.user.role === 'semi_admin') {
     return res.status(400).json({ error: '你已有上传权限' });
   }
-  if (!(await ensureUploadTable())) return res.status(503).json({ error: '服务正在初始化，请稍后再试' });
-  const existing = await db('upload_applies').findOne({ user_id: req.user.id, status: 'pending' });
-  if (existing) return res.json({ message: '已申请过，请等待管理员审核' });
-  await db('upload_applies').insert({
-    user_id: req.user.id,
-    status: 'pending',
-    created_at: new Date().toISOString()
-  });
-  res.json({ message: '申请已提交' });
+  try {
+    if (!(await ensureUploadTable())) return res.status(503).json({ error: '数据库表未创建，请管理员在Supabase SQL Editor中执行建表语句' });
+    const existing = await db('upload_applies').findOne({ user_id: req.user.id, status: 'pending' });
+    if (existing) return res.json({ message: '已申请过，请等待管理员审核' });
+    await db('upload_applies').insert({
+      user_id: req.user.id,
+      status: 'pending',
+      created_at: new Date().toISOString()
+    });
+    res.json({ message: '申请已提交' });
+  } catch(e) {
+    res.status(500).json({ error: '申请失败，表可能未创建: ' + e.message });
+  }
 });
 
 router.get('/upload-applies', auth, adminOnly, async (req, res) => {

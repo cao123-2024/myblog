@@ -92,37 +92,48 @@ async function editProfileModal() {
   var ud = window._profileData?.user || Store.user;
   var canUpload = ud.can_upload_images || Store.isAdmin();
   var curAv = (ud.avatar || '');
+  var curBg = (ud.bg_image || '');
 
   var presetHtml = '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px">';
   PRESET_AVATARS.forEach(function(p){
     var uri = 'data:image/svg+xml,' + encodeURIComponent(p.svg);
     var sel = curAv === uri ? 'border:3px solid var(--blue)!important' : '';
-    presetHtml += '<div class="preset-av-item" data-av="'+p.id+'" data-uri="'+escapeHtml(uri)+'" title="'+p.name+'" style="width:44px;height:44px;border-radius:50%;background-image:url('+uri+');background-size:cover;cursor:pointer;border:2px solid transparent;transition:all 0.2s ease;'+sel+'" onclick="document.querySelectorAll(\'.preset-av-item\').forEach(function(e){e.style.border=\'2px solid transparent\'});this.style.border=\'3px solid var(--blue)\';window._selectedPresetAv=\''+p.id+'\';var up=document.getElementById(\'edit-avatar\');if(up)up.value=\'\'"></div>';
+    presetHtml += '<div class="preset-av-item" data-av="'+p.id+'" title="'+p.name+'" style="width:44px;height:44px;border-radius:50%;background-size:cover;cursor:pointer;border:2px solid transparent;transition:all 0.2s;'+sel+';background-image:url('+escapeHtml(uri)+')" onclick="var qs=document.querySelectorAll(\'.preset-av-item\');for(var i=0;i<qs.length;i++)qs[i].style.border=\'2px solid transparent\';this.style.border=\'3px solid var(--blue)\';window._selectedPresetAv=\''+p.id+'\';var up=document.getElementById(\'edit-avatar\');if(up)up.value=\'\'"></div>';
   });
   presetHtml += '</div>';
+
+  var bgHtml = '<div style="display:flex;flex-wrap:wrap;gap:6px;max-height:180px;overflow-y:auto;margin-bottom:4px">';
+  var STATIC_COUNT = 12;
+  for (var i = 0; i < STATIC_COUNT; i++) {
+    var url = '/img/wallpapers/' + i + '.jpg';
+    var bSel = curBg === url ? 'border:3px solid var(--blue)!important' : '';
+    bgHtml += '<div class="preset-bg-item" data-bg="'+escapeHtml(url)+'" style="width:80px;height:48px;border-radius:6px;background-image:url('+escapeHtml(url)+');background-size:cover;cursor:pointer;border:2px solid transparent;transition:all 0.2s;'+bSel+'" onclick="var qs=document.querySelectorAll(\'.preset-bg-item\');for(var i=0;i<qs.length;i++)qs[i].style.border=\'2px solid transparent\';this.style.border=\'3px solid var(--blue)\';window._selectedPresetBg=this.dataset.bg;var bgEl=document.getElementById(\'edit-bg\');if(bgEl)bgEl.value=\'\'"></div>';
+  }
+  bgHtml += '</div>';
 
   var uploadSection = '';
   if (canUpload) {
     uploadSection = ''
-      + '<div class="form-group" style="border-top:1px solid var(--border-subtle);padding-top:12px"><label>上传自定义头像</label><input type="file" class="input" id="edit-avatar" accept="image/*" onchange="document.querySelectorAll(\'.preset-av-item\').forEach(function(e){e.style.border=\'2px solid transparent\'});window._selectedPresetAv=null"></div>'
-      + '<div class="form-group"><label>资料背景图 (仅详情页显示)</label><input type="file" class="input" id="edit-bg" accept="image/*"></div>';
+      + '<div style="border-top:1px solid var(--border-subtle);padding-top:12px"><label>上传自定义头像</label><input type="file" class="input" id="edit-avatar" accept="image/*" onchange="var qs=document.querySelectorAll(\'.preset-av-item\');for(var i=0;i<qs.length;i++)qs[i].style.border=\'2px solid transparent\';window._selectedPresetAv=null"></div>'
+      + '<div class="form-group"><label>上传自定义背景图</label><input type="file" class="input" id="edit-bg" accept="image/*" onchange="var qs=document.querySelectorAll(\'.preset-bg-item\');for(var i=0;i<qs.length;i++)qs[i].style.border=\'2px solid transparent\';window._selectedPresetBg=null"></div>';
   } else {
     uploadSection = ''
-      + '<div style="border-top:1px solid var(--border-subtle);padding-top:12px;margin-top:4px">'
+      + '<div style="border-top:1px solid var(--border-subtle);padding-top:12px">'
       + '<p class="text-xs text-secondary mb-2">上传自定义头像和背景图需要管理员授权</p>'
-      + '<button class="btn btn-glass btn-sm w-full" id="apply-upload-btn" onclick="event.preventDefault();applyUploadPermission()">申请上传权限</button>'
+      + '<button class="btn btn-glass btn-sm w-full" onclick="event.preventDefault();applyUploadPermission()">申请上传权限</button>'
       + '</div>';
   }
 
   showModal('编辑资料', ''
     + '<div class="form-group"><label>选择头像</label>'+presetHtml+'</div>'
+    + '<div class="form-group"><label>选择资料背景图</label>'+bgHtml+'</div>'
     + uploadSection
     + '<div class="form-group"><label>昵称</label><input class="input input-glass" id="edit-nickname" value="'+escapeHtml(ud.nickname||'')+'"></div>'
     + '<div class="form-group"><label>简介</label><textarea class="input input-glass textarea" id="edit-bio" rows="3">'+escapeHtml(ud.bio||'')+'</textarea></div>'
   , async function() {
     var fd = new FormData();
-    var nn = document.getElementById('edit-nickname').value.trim();
-    var bio = document.getElementById('edit-bio').value.trim();
+    var nn = document.getElementById('edit-nickname') ? document.getElementById('edit-nickname').value.trim() : '';
+    var bio = document.getElementById('edit-bio') ? document.getElementById('edit-bio').value.trim() : '';
     if (nn) fd.append('nickname', nn);
     if (bio) fd.append('bio', bio);
 
@@ -134,7 +145,11 @@ async function editProfileModal() {
       var avEl = document.getElementById('edit-avatar');
       if (avEl && avEl.files && avEl.files[0]) fd.append('avatar', await compressProfileImage(avEl.files[0]));
     }
-    if (canUpload) {
+
+    var selBg = window._selectedPresetBg;
+    if (selBg) {
+      fd.append('bg_image_data', selBg);
+    } else if (canUpload) {
       var bgEl = document.getElementById('edit-bg');
       if (bgEl && bgEl.files && bgEl.files[0]) fd.append('bg_image', await compressProfileImage(bgEl.files[0]));
     }
