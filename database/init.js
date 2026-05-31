@@ -115,6 +115,10 @@ async function createWallpapersTables() {
     if (!error) console.log('[DB] wallpapers table auto-created');
     await sb.sql`CREATE TABLE IF NOT EXISTS upload_applies (id SERIAL PRIMARY KEY, user_id INTEGER, status TEXT DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT NOW())`;
     console.log('[DB] upload_applies table ready');
+    await sb.sql`CREATE TABLE IF NOT EXISTS game_queue (id SERIAL PRIMARY KEY, user_id INTEGER, status TEXT DEFAULT 'waiting', matched_with INTEGER, room_id INTEGER, created_at TIMESTAMPTZ DEFAULT NOW())`;
+    await sb.sql`CREATE TABLE IF NOT EXISTS game_rooms (id SERIAL PRIMARY KEY, player1 INTEGER, player2 INTEGER, game_type TEXT DEFAULT 'gomoku', turn INTEGER DEFAULT 1, board TEXT, status TEXT DEFAULT 'active', winner INTEGER, p1_heartbeat TIMESTAMPTZ, p2_heartbeat TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW())`;
+    await sb.sql`CREATE TABLE IF NOT EXISTS game_invites (id SERIAL PRIMARY KEY, from_user INTEGER, to_user INTEGER, status TEXT DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT NOW())`;
+    console.log('[DB] game tables ready');
   } catch(e) {
     console.error('[DB] tables init:', e.message);
   }

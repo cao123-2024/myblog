@@ -1,4 +1,8 @@
 var _gameActive = null;
+var _gameTab = 'single';
+var _multiInterval = null;
+var _multiRoomId = null;
+var _multiMyColor = null;
 
 function render_games() {
   var wrap = document.createElement('div');
@@ -6,12 +10,39 @@ function render_games() {
 
   var hdr = document.createElement('div');
   hdr.style.cssText = 'margin-bottom:20px';
-  hdr.innerHTML = '<h2 style="font-size:1.4rem;font-weight:700">游戏中心</h2>'
-    + '<p class="text-sm text-secondary">单人模式 · 选择一款游戏开始</p>';
+  hdr.innerHTML = '<h2 style="font-size:1.4rem;font-weight:700;margin-bottom:8px">游戏中心</h2>';
   wrap.appendChild(hdr);
 
+  var tabs = document.createElement('div');
+  tabs.style.cssText = 'display:flex;gap:0;margin-bottom:20px;background:var(--bg-glass);border-radius:10px;padding:4px;width:fit-content';
+  tabs.innerHTML = '<button class="btn btn-sm" id="gtab-single" style="border-radius:8px;background:var(--blue);color:#fff;font-weight:600" onclick="switchGameTab(\'single\')">单人模式</button>'
+    + '<button class="btn btn-sm" id="gtab-dual" style="border-radius:8px;background:transparent;color:var(--text-secondary)" onclick="switchGameTab(\'dual\')">双人对战</button>';
+  wrap.appendChild(tabs);
+
+  var content = document.createElement('div');
+  content.id = 'game-tab-content';
+  content.innerHTML = renderSingleGames();
+  wrap.appendChild(content);
+
+  return wrap;
+}
+
+function switchGameTab(tab) {
+  _gameTab = tab;
+  document.getElementById('gtab-single').style.cssText = 'border-radius:8px;background:'+(tab==='single'?'var(--blue)':'transparent')+';color:'+(tab==='single'?'#fff':'var(--text-secondary)')+';font-weight:600';
+  document.getElementById('gtab-dual').style.cssText = 'border-radius:8px;background:'+(tab==='dual'?'var(--blue)':'transparent')+';color:'+(tab==='dual'?'#fff':'var(--text-secondary)')+';font-weight:600';
+  if (_multiInterval) { clearInterval(_multiInterval); _multiInterval = null; }
+  API.post('/game/queue/cancel').catch(function(){});
+  document.getElementById('game-tab-content').innerHTML = tab === 'single' ? renderSingleGames() : renderDualGames();
+  if (tab === 'dual') initDualMode();
+
+  var canvas = document.getElementById('game-canvas');
+  if (canvas) { canvas.style.display = 'none'; canvas.innerHTML = ''; }
+}
+
+function renderSingleGames() {
   var grid = document.createElement('div');
-  grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;margin-bottom:24px';
+  grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px';
 
   var svgs = {
     gomoku: '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#BF7B00" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="3" y1="3" x2="21" y2="21"/><line x1="21" y1="3" x2="3" y2="21"/></svg>',
@@ -36,40 +67,323 @@ function render_games() {
   ];
 
   games.forEach(function(g){
-    grid.innerHTML += '<div class="card-glass game-grid-card" style="padding:14px;cursor:pointer;text-align:center" onclick="launchGame(\''+g.id+'\')">'
-      + '<div style="margin-bottom:6px;display:flex;justify-content:center">'+(svgs[g.id]||'')+'</div>'
+    var el = document.createElement('div');
+    el.className = 'card-glass game-grid-card';
+    el.style.cssText = 'padding:14px;cursor:pointer;text-align:center';
+    el.onclick = function(){ launchGame(g.id); };
+    el.innerHTML = '<div style="margin-bottom:6px;display:flex;justify-content:center">'+(svgs[g.id]||'')+'</div>'
       + '<h3 style="font-size:0.85rem;font-weight:600;margin-bottom:2px">'+g.name+'</h3>'
-      + '<p class="text-xs text-secondary">'+g.desc+'</p>'
-      + '</div>';
+      + '<p class="text-xs text-secondary">'+g.desc+'</p>';
+    grid.appendChild(el);
   });
-  wrap.appendChild(grid);
-
-  var canvas = document.createElement('div');
-  canvas.id = 'game-canvas';
-  canvas.style.cssText = 'display:none';
-  wrap.appendChild(canvas);
-  return wrap;
+  return grid.outerHTML;
 }
 
-function launchGame(id) {
-  _gameActive = id;
-  var c = document.getElementById('game-canvas');
-  c.style.display = 'block';
-  c.innerHTML = ''
-    + '<div class="card-glass" style="padding:12px 16px;margin-bottom:12px">'
-    + '<div class="flex items-center justify-between">'
-    + '<h3 style="font-size:1rem;font-weight:600" id="game-title"></h3>'
-    + '<button class="btn btn-glass btn-sm" onclick="closeGame()">← 返回列表</button>'
-    + '</div></div>'
-    + '<div id="game-container" style="display:flex;justify-content:center"></div>';
-  setTimeout(function(){ window['init_'+id](); }, 50);
+/* ===== DUAL MODE ===== */
+function renderDualGames() {
+  var wrap = document.createElement('div');
+  wrap.innerHTML = '<div id="dual-lobby"></div><div id="dual-game-area" style="display:none"></div>';
+  return wrap.innerHTML;
 }
 
-function closeGame() {
-  _gameActive = null;
-  var c = document.getElementById('game-canvas');
-  c.style.display = 'none';
-  c.innerHTML = '';
+function initDualMode() {
+  var lobby = document.getElementById('dual-lobby');
+  if (!lobby) return;
+  lobby.innerHTML = ''
+    + '<div class="card-glass" style="padding:24px;text-align:center;max-width:600px;margin:0 auto">'
+    + '<h3 style="font-size:1.1rem;font-weight:600;margin-bottom:20px">双人五子棋</h3>'
+    + '<div style="display:flex;align-items:center;justify-content:center;gap:30px;margin-bottom:24px">'
+    + '<div style="text-align:center"><div style="width:64px;height:64px;border-radius:50%;background-size:cover;background-position:center;margin:0 auto 8px;background-color:rgba(255,255,255,0.06);border:2px solid var(--blue);background-image:url('+(Store.user?.avatar||'')+')"></div><div class="text-sm font-medium">'+escapeHtml(Store.user?.nickname||'')+' (你)</div></div>'
+    + '<div style="font-size:2rem;color:var(--text-tertiary)">VS</div>'
+    + '<div id="dual-opponent-slot" style="text-align:center"><div style="width:64px;height:64px;border-radius:50%;border:2px dashed rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;margin:0 auto 8px;cursor:pointer;transition:all 0.2s" id="dual-plus-btn" onclick="showDualInviteOptions()"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><div class="text-xs text-secondary">选择对手</div></div>'
+    + '</div>'
+    + '<div id="dual-status" style="min-height:24px;margin-bottom:16px"></div>'
+    + '<div id="dual-actions"></div>'
+    + '</div>'
+    + '<div id="dual-incoming" style="margin-top:12px"></div>';
+  checkIncomingInvites();
+}
+
+function checkIncomingInvites() {
+  setInterval(async function() {
+    if (_gameTab !== 'dual' || _multiRoomId) return;
+    try {
+      var d = await API.get('/game/invites/pending');
+      var invites = d.invites || [];
+      var container = document.getElementById('dual-incoming');
+      if (!container) return;
+      if (invites.length === 0) { container.innerHTML = ''; return; }
+      container.innerHTML = invites.map(function(inv) {
+        if (!inv.from) return '';
+        return '<div class="card-glass" style="padding:14px 18px;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+          + '<div style="display:flex;align-items:center;gap:10px">'
+          + '<div style="width:36px;height:36px;border-radius:50%;background-size:cover;background-position:center;background-color:rgba(255,255,255,0.06);background-image:url('+escapeHtml(inv.from.avatar||'')+')"></div>'
+          + '<span class="text-sm font-medium">'+escapeHtml(inv.from.nickname||inv.from.username)+'<span class="text-xs text-secondary"> 邀请你对战</span></span></div>'
+          + '<div style="display:flex;gap:6px">'
+          + '<button class="btn btn-primary btn-sm" style="padding:4px 12px;font-size:0.75rem" onclick="acceptDualInvite('+inv.id+')">接受</button>'
+          + '<button class="btn btn-glass btn-sm" style="padding:4px 12px;font-size:0.75rem" onclick="API.post(\'/game/invite/'+inv.id+'/reject\');document.getElementById(\'dual-incoming\').innerHTML=\'\'">拒绝</button>'
+          + '</div></div>';
+      }).join('');
+    } catch (e) {}
+  }, 3000);
+}
+
+async function acceptDualInvite(inviteId) {
+  try {
+    var d = await API.post('/game/invite/'+inviteId+'/accept');
+    if (d.room) {
+      toast('加入对战!', 'success');
+      dualStartGame(d.room);
+    }
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function showDualInviteOptions() {
+  var html = '<div style="max-height:360px;overflow-y:auto">'
+    + '<div class="text-sm font-medium mb-2">邀请好友</div>'
+    + '<div id="dual-friend-list" style="margin-bottom:12px"><div class="text-xs text-secondary p-2">加载中...</div></div>'
+    + '<div style="border-top:1px solid var(--border-subtle);padding-top:12px">'
+    + '<div class="text-sm font-medium mb-2">随机匹配</div>'
+    + '<button class="btn btn-primary btn-sm w-full" onclick="startRandomMatch();closeModal()">寻找在线对手</button>'
+    + '</div></div>';
+  showModal('选择对手', html, null, null);
+  loadFriendList();
+}
+
+async function loadFriendList() {
+  try {
+    var d = await API.get('/game/online-friends');
+    var friends = d.friends || [];
+    var list = document.getElementById('dual-friend-list');
+    if (!list) return;
+    if (friends.length === 0) {
+      list.innerHTML = '<div class="text-xs text-secondary p-2">暂无好友在线</div>';
+      return;
+    }
+    list.innerHTML = friends.map(function(f) {
+      var disabled = f.in_game ? 'style="opacity:0.4;pointer-events:none"' : '';
+      var tag = f.in_game ? '<span class="text-xs" style="color:#CF222E">对战中</span>' : '<span class="text-xs" style="color:#1A7F37">在线</span>';
+      return '<div class="card-glass" style="padding:10px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;cursor:pointer" '+disabled+' onclick="inviteFriend('+f.id+',\''+escapeHtml(f.nickname||f.username)+'\',\''+escapeHtml(f.avatar||'')+'\')">'
+        + '<div style="display:flex;align-items:center;gap:10px">'
+        + '<div style="width:36px;height:36px;border-radius:50%;background-size:cover;background-position:center;background-color:rgba(255,255,255,0.06);background-image:url('+escapeHtml(f.avatar||'')+')"></div>'
+        + '<span class="text-sm font-medium">'+escapeHtml(f.nickname||f.username)+'</span></div>'
+        + tag
+        + '</div>';
+    }).join('');
+  } catch (e) {}
+}
+
+async function inviteFriend(userId, name, avatar) {
+  closeModal();
+  try {
+    await API.post('/game/invite/' + userId);
+    document.getElementById('dual-opponent-slot').innerHTML = '<div style="text-align:center"><div style="width:64px;height:64px;border-radius:50%;background-size:cover;background-position:center;margin:0 auto 8px;background-color:rgba(255,255,255,0.06);background-image:url('+escapeHtml(avatar)+')"></div><div class="text-sm font-medium">'+escapeHtml(name)+'</div></div>';
+    document.getElementById('dual-status').innerHTML = '<p class="text-sm" style="color:#BF7B00">等待 '+escapeHtml(name)+' 接受邀请...</p>';
+    document.getElementById('dual-actions').innerHTML = '<button class="btn btn-glass btn-sm" onclick="cancelInvite()">取消邀请</button>';
+    pollInviteResponse(userId);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function pollInviteResponse(userId) {
+  if (_multiInterval) clearInterval(_multiInterval);
+  _multiInterval = setInterval(async function() {
+    try {
+      var d = await API.get('/game/invites/pending');
+      var invites = (d.invites || []).filter(function(i){ return i.from && i.from.id === userId; });
+      if (invites.length === 0) {
+        checkForRoom();
+      }
+    } catch (e) {}
+  }, 1500);
+}
+
+function cancelInvite() {
+  if (_multiInterval) { clearInterval(_multiInterval); _multiInterval = null; }
+  initDualMode();
+}
+
+async function startRandomMatch() {
+  try {
+    var d = await API.get('/game/queue');
+    if (d.room) {
+      document.getElementById('dual-opponent-slot').innerHTML = '<div style="text-align:center"><div style="width:64px;height:64px;border-radius:50%;background-size:cover;background-position:center;margin:0 auto 8px;background-color:rgba(255,255,255,0.06);background-image:url('+escapeHtml(d.room.opponent?.avatar||'')+')"></div><div class="text-sm font-medium">'+escapeHtml(d.room.opponent?.nickname||'')+'</div></div>';
+      toast('已匹配到对手!', 'success');
+      dualStartGame(d.room);
+      return;
+    }
+    document.getElementById('dual-status').innerHTML = '<p class="text-sm" style="color:#BF7B00">匹配中... 等待对手</p>';
+    document.getElementById('dual-actions').innerHTML = '<button class="btn btn-glass btn-sm" onclick="cancelMatch()">取消匹配</button>';
+    pollMatchStatus();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function pollMatchStatus() {
+  if (_multiInterval) clearInterval(_multiInterval);
+  _multiInterval = setInterval(async function() {
+    try {
+      var d = await API.get('/game/queue/status');
+      if (d.matched && d.room) {
+        clearInterval(_multiInterval); _multiInterval = null;
+        document.getElementById('dual-opponent-slot').innerHTML = '<div style="text-align:center"><div style="width:64px;height:64px;border-radius:50%;background-size:cover;background-position:center;margin:0 auto 8px;background-color:rgba(255,255,255,0.06);background-image:url('+escapeHtml(d.room.opponent?.avatar||'')+')"></div><div class="text-sm font-medium">'+escapeHtml(d.room.opponent?.nickname||'')+'</div></div>';
+        document.getElementById('dual-status').innerHTML = '<p class="text-sm" style="color:#1A7F37">已匹配!</p>';
+        toast('已匹配到对手!', 'success');
+        setTimeout(function(){ dualStartGame(d.room); }, 500);
+      }
+    } catch (e) {}
+  }, 2000);
+}
+
+function cancelMatch() {
+  clearInterval(_multiInterval); _multiInterval = null;
+  API.post('/game/queue/cancel').catch(function(){});
+  initDualMode();
+}
+
+/* ===== DUAL GAME FULLSCREEN ===== */
+async function checkForRoom() {
+  try {
+    var d = await API.get('/game/invites/pending');
+  } catch (e) {}
+}
+
+function dualStartGame(room) {
+  if (_multiInterval) { clearInterval(_multiInterval); _multiInterval = null; }
+  _multiRoomId = room.id;
+  _multiMyColor = room.you_color || 1;
+  _gameActive = 'multi-gomoku';
+
+  var oppName = room.opponent ? (room.opponent.nickname || room.opponent.username) : '对手';
+
+  var overlay = document.createElement('div');
+  overlay.id = 'gomoku-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.94);display:flex;flex-direction:column;align-items:center;justify-content:center';
+  document.body.appendChild(overlay);
+
+  var header = document.createElement('div');
+  header.style.cssText = 'position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;z-index:10';
+  header.innerHTML = '<div style="color:#ccc;font-size:0.85rem">VS '+escapeHtml(oppName)+'</div>'
+    + '<span style="color:#ccc;font-weight:600">五子棋 · 双人对战</span>'
+    + '<button id="gmk-resign" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,80,80,0.3);color:#ef4444;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:0.85rem">认输</button>';
+  overlay.appendChild(header);
+
+  var status = document.createElement('div');
+  status.style.cssText = 'color:#ccc;font-weight:500;font-size:0.95rem;text-align:center;margin-bottom:8px;min-height:24px';
+  status.textContent = _multiMyColor === 1 ? '你的回合 · 执黑' : '你的回合 · 执白';
+  overlay.appendChild(status);
+
+  var SZ = 15, CELL = 34, B = 5, CW = CELL * SZ + 10;
+  var canvas = document.createElement('canvas');
+  canvas.width = CW; canvas.height = CW;
+  canvas.style.cssText = 'border-radius:8px;background:#1a1a1a;cursor:pointer;max-width:98vw;max-height:calc(100vh - 180px)';
+  overlay.appendChild(canvas);
+
+  overlay.appendChild(header); overlay.appendChild(status); overlay.appendChild(canvas);
+
+  document.getElementById('gmk-resign').onclick = function() {
+    API.post('/game/room/' + _multiRoomId + '/resign').catch(function(){});
+    document.body.removeChild(overlay); _gameActive = null;
+    toast('你认输了', 'info');
+  };
+
+  /* Board state & draw */
+  var board = Array.from({length:SZ}, function(){return Array(SZ).fill(0)});
+  var gameOver = false, lastMove = null;
+
+  function drawBoard() {
+    var ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#1a1a1a'; ctx.fillRect(0,0,CW,CW);
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+    for (var i=0;i<SZ;i++) { ctx.beginPath(); ctx.moveTo(B,B+i*CELL); ctx.lineTo(B+(SZ-1)*CELL,B+i*CELL); ctx.stroke(); ctx.beginPath(); ctx.moveTo(B+i*CELL,B); ctx.lineTo(B+i*CELL,B+(SZ-1)*CELL); ctx.stroke(); }
+    ctx.fillStyle='rgba(255,255,255,0.3)';
+    [[3,3],[3,7],[3,11],[7,3],[7,7],[7,11],[11,3],[11,7],[11,11]].forEach(function(p){ctx.beginPath();ctx.arc(B+p[0]*CELL,B+p[1]*CELL,2.5,0,Math.PI*2);ctx.fill()});
+    for (var y=0;y<SZ;y++)for(var x=0;x<SZ;x++){if(!board[y][x])continue;var cx=B+x*CELL,cy=B+y*CELL,r=CELL*0.42;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);var g=ctx.createRadialGradient(cx-r*0.3,cy-r*0.3,r*0.1,cx,cy,r);if(board[y][x]===1){g.addColorStop(0,'#333');g.addColorStop(1,'#000')}else{g.addColorStop(0,'#fff');g.addColorStop(1,'#aaa')}ctx.fillStyle=g;ctx.fill()}
+    if(lastMove){var lx=B+lastMove.x*CELL,ly=B+lastMove.y*CELL;ctx.strokeStyle='#FFD700';ctx.lineWidth=2;ctx.beginPath();ctx.arc(lx,ly,CELL*0.44,0,Math.PI*2);ctx.stroke();ctx.lineWidth=1}
+  }
+
+  canvas.addEventListener('click', function(e){
+    if(gameOver)return;
+    var rect=canvas.getBoundingClientRect();
+    var sx=CW/rect.width,sy=CW/rect.height;
+    var mx=(e.clientX-rect.left)*sx,my=(e.clientY-rect.top)*sy;
+    var x=Math.round((mx-B)/CELL),y=Math.round((my-B)/CELL);
+    if(x<0||x>=SZ||y<0||y>=SZ||board[y][x]!==0)return;
+    board[y][x]=_multiMyColor;lastMove={x:x,y:y};drawBoard();
+    API.post('/game/room/'+_multiRoomId+'/move',{x:x,y:y}).then(function(r){
+      var rm=r.room;
+      if(rm.status==='finished'){gameOver=true;status.textContent=rm.winner===Store.user.id?'你赢了!':'你输了';toast(rm.winner===Store.user.id?'你赢了!':'你输了','info');return}
+      status.textContent='对手回合...';
+    }).catch(function(e2){toast(e2.message,'error');board[y][x]=0;lastMove=null;drawBoard()});
+  });
+
+  drawBoard();
+  dualPollRoom(canvas, overlay, board, status, lastMove, gameOver, SZ, CELL, B, CW, oppName);
+}
+
+function dualPollRoom(canvas, overlay, board, status, lastMoveRef, gameOverRef, SZ, CELL, B, CW, oppName) {
+  if (_multiInterval) clearInterval(_multiInterval);
+  _multiInterval = setInterval(async function() {
+    try {
+      var d = await API.get('/game/room/' + _multiRoomId);
+      var r = d.room;
+      if (!r) return;
+      var newBoard = r.board;
+
+      /* Heartbeat */
+      API.post('/game/room/' + _multiRoomId + '/heartbeat').catch(function(){});
+
+      /* Opponent disconnected? */
+      if (r.opponent_disconnected) {
+        clearInterval(_multiInterval); _multiInterval = null;
+        var html = '<div class="text-center"><p class="mb-4">对手已断开连接</p>'
+          + '<button class="btn btn-primary btn-sm mr-2" onclick="closeModal();API.post(\'/game/queue/cancel\');switchGameTab(\'dual\')">重新匹配</button>'
+          + '<button class="btn btn-glass btn-sm" onclick="closeModal();document.body.removeChild(document.getElementById(\'gomoku-overlay\'));_gameActive=null">退出</button></div>';
+        showModal('连接中断', html, null, null);
+        return;
+      }
+
+      if (r.status === 'finished') {
+        clearInterval(_multiInterval); _multiInterval = null;
+        var won = r.winner === Store.user.id;
+        document.getElementById('gomoku-overlay').querySelectorAll('div')[2].textContent = won ? '你赢了!' : '你输了';
+        toast(won ? '你赢了!' : '你输了', won ? 'success' : 'error');
+        setTimeout(function(){
+          var html2 = '<div class="text-center"><p class="mb-4">'+(won?'恭喜你赢了!':'你输了...')+'</p>'
+            + '<button class="btn btn-primary btn-sm mr-2" onclick="closeModal();API.post(\'/game/queue/cancel\');switchGameTab(\'dual\')">再来一局</button>'
+            + '<button class="btn btn-glass btn-sm" onclick="closeModal();var ov=document.getElementById(\'gomoku-overlay\');if(ov)document.body.removeChild(ov);_gameActive=null">退出</button></div>';
+          showModal('游戏结束', html2, null, null);
+        }, 800);
+        return;
+      }
+
+      var changed = false;
+      for (var y = 0; y < 15; y++) for (var x = 0; x < 15; x++) {
+        if ((board[y] && board[y][x]) !== (newBoard[y] && newBoard[y][x])) {
+          if (newBoard[y] && newBoard[y][x] !== 0) lastMoveRef = {x: x, y: y};
+          changed = true;
+        }
+      }
+      if (changed) {
+        board = newBoard.map(function(row){return row.slice()});
+        drawBoardDual(canvas, board, lastMoveRef, SZ, CELL, B, CW);
+        if (r.turn === _multiMyColor) {
+          document.getElementById('gomoku-overlay').querySelectorAll('div')[2].textContent = '你的回合';
+        } else {
+          document.getElementById('gomoku-overlay').querySelectorAll('div')[2].textContent = '对手回合...';
+        }
+      }
+    } catch (e) {}
+  }, 1500);
+
+  function drawBoardDual(cvs, bd, lm, sz, cl, br, cw) {
+    var ctx = cvs.getContext('2d');
+    ctx.fillStyle = '#1a1a1a'; ctx.fillRect(0,0,cw,cw);
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+    for (var i=0;i<sz;i++){ctx.beginPath();ctx.moveTo(br,br+i*cl);ctx.lineTo(br+(sz-1)*cl,br+i*cl);ctx.stroke();ctx.beginPath();ctx.moveTo(br+i*cl,br);ctx.lineTo(br+i*cl,br+(sz-1)*cl);ctx.stroke()}
+    ctx.fillStyle='rgba(255,255,255,0.3)';
+    [[3,3],[3,7],[3,11],[7,3],[7,7],[7,11],[11,3],[11,7],[11,11]].forEach(function(p){ctx.beginPath();ctx.arc(br+p[0]*cl,br+p[1]*cl,2.5,0,Math.PI*2);ctx.fill()});
+    for(var y=0;y<sz;y++)for(var x=0;x<sz;x++){if(!bd[y][x])continue;var cx=br+x*cl,cy=br+y*cl,r=cl*0.42;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);var g=ctx.createRadialGradient(cx-r*0.3,cy-r*0.3,r*0.1,cx,cy,r);if(bd[y][x]===1){g.addColorStop(0,'#333');g.addColorStop(1,'#000')}else{g.addColorStop(0,'#fff');g.addColorStop(1,'#aaa')}ctx.fillStyle=g;ctx.fill()}
+    if(lm){var lx=br+lm.x*cl,ly=br+lm.y*cl;ctx.strokeStyle='#FFD700';ctx.lineWidth=2;ctx.beginPath();ctx.arc(lx,ly,cl*0.44,0,Math.PI*2);ctx.stroke();ctx.lineWidth=1}
+  }
 }
 
 /* ===== 2048 ===== */

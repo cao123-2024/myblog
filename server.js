@@ -64,6 +64,7 @@ const messageRoutes = require('./routes/messages');
 const downloadRoutes = require('./routes/downloads');
 const announcementRoutes = require('./routes/announcements');
 const wallpaperRoutes = require('./routes/wallpapers');
+const gameRoutes = require('./routes/game');
 
 app.use('/api', authRoutes);
 app.use('/api/articles', articleRoutes);
@@ -75,6 +76,7 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/downloads', downloadRoutes);
 app.use('/api/announcements', announcementRoutes);
 app.use('/api/wallpapers', wallpaperRoutes);
+app.use('/api/game', gameRoutes);
 
 app.get('*', function(req, res){
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
