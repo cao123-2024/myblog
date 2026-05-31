@@ -1,18 +1,21 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 const { db } = require('../database/db');
 const { auth } = require('../middleware/auth');
 
 const router = express.Router();
 
+const isVercel = process.env.VERCEL === '1';
 const storage = multer.diskStorage({
-  destination: process.env.VERCEL === '1'
+  destination: isVercel
     ? '/tmp/uploads'
     : path.join(__dirname, '..', 'uploads'),
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname);
-    cb(null, 'avatar-' + req.user.id + '-' + Date.now() + ext);
+    const prefix = file.fieldname === 'bg_image' ? 'bg' : 'avatar';
+    cb(null, prefix + '-' + req.user.id + '-' + Date.now() + ext);
   }
 });
 const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
@@ -43,12 +46,18 @@ router.put('/profile', auth, upload.fields([
   { name: 'avatar', maxCount: 1 },
   { name: 'bg_image', maxCount: 1 }
 ]), async (req, res) => {
-  const { nickname, bio } = req.body;
+  const { nickname, bio, avatar_data } = req.body;
   const updates = {};
   if (nickname) updates.nickname = nickname;
   if (bio !== undefined) updates.bio = bio;
-  if (req.files && req.files.avatar) updates.avatar = '/uploads/' + req.files.avatar[0].filename;
-  if (req.files && req.files.bg_image) updates.bg_image = '/uploads/' + req.files.bg_image[0].filename;
+  if (avatar_data) {
+    updates.avatar = avatar_data;
+  } else if (req.files && req.files.avatar) {
+    updates.avatar = '/uploads/' + req.files.avatar[0].filename;
+  }
+  if (req.files && req.files.bg_image) {
+    updates.bg_image = '/uploads/' + req.files.bg_image[0].filename;
+  }
 
   const updated = await db('users').update(req.user.id, updates);
   const { password: _, ...safe } = updated;

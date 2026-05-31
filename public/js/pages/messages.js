@@ -71,7 +71,7 @@ async function loadChatData() {
       row.onmouseleave = function(){ row.style.background = 'transparent'; };
       row.onclick = function(){ openChatWith(id); };
       var unread = c.unread ? '<span style="margin-left:auto;background:var(--blue);color:#fff;border-radius:10px;padding:2px 7px;font-size:0.65rem">'+c.unread+'</span>' : '';
-      row.innerHTML = '<div class="comment-avatar" style="background-image:url('+(c.other.avatar||'')+');width:36px;height:36px"></div>'
+      row.innerHTML = '<div class="comment-avatar" style="background-image:url('+avatarUrl(c.other)+');width:36px;height:36px"></div>'
         + '<span class="font-medium text-sm">'+escapeHtml(c.other.nickname||c.other.username)+'</span>'+unread;
       el.appendChild(row);
     });
@@ -84,7 +84,7 @@ async function loadChatData() {
       row.onmouseenter = function(){ row.style.background = 'var(--bg-glass)'; };
       row.onmouseleave = function(){ row.style.background = 'transparent'; };
       row.onclick = function(){ openChatWith(f.id); };
-      row.innerHTML = '<div class="comment-avatar" style="background-image:url('+(f.avatar||'')+');width:36px;height:36px"></div>'
+      row.innerHTML = '<div class="comment-avatar" style="background-image:url('+avatarUrl(f)+');width:36px;height:36px"></div>'
         + '<span class="font-medium text-sm">'+escapeHtml(f.nickname||f.username)+'</span>';
       el.appendChild(row);
     });
@@ -129,7 +129,7 @@ async function openChatWith(userId) {
   try {
     const data = await API.get('/messages/with/' + userId);
     $('#chat-other-name').textContent = data.other?.nickname || data.other?.username || '';
-    const av = data.other?.avatar || '';
+    const av = avatarUrl(data.other);
     $('#chat-other-avatar').style.backgroundImage = av ? `url(${av})` : 'none';
     renderChatMessages(data.messages || []);
 
@@ -322,7 +322,8 @@ function adminBroadcastRender(){
   for(var i=0; i<filtered.length; i++){
     var u = filtered[i];
     var checked = !!_abSelected[u.id];
-    var av = u.avatar ? 'style="background-image:url('+escapeHtml(u.avatar)+')"' : '';
+    var avUrl = avatarUrl(u);
+    var av = avUrl ? 'style="background-image:url('+escapeHtml(avUrl)+')"' : '';
     var tag = u.tag ? '<span class="text-xs text-tertiary">['+escapeHtml(u.tag)+']</span>' : '';
     var roleBadge = '';
     if(u.role==='admin' && !u.created_by) roleBadge = '<span class="text-xs" style="color:var(--purple, #a855f7)">超管</span>';

@@ -39,7 +39,7 @@ async function loadFriendList() {
         var u = p.other;
         html += '<div class="card-glass" style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;margin-bottom:8px">';
         html += '<div class="flex items-center gap-3">';
-        html += '<div class="comment-avatar" style="width:44px;height:44px;' + (u.avatar ? 'background-image:url('+u.avatar+')' : '') + '"></div>';
+        html += '<div class="comment-avatar" style="width:44px;height:44px;background-image:url('+avatarUrl(u)+')"></div>';
         html += '<div><div class="font-medium">'+escapeHtml(u.nickname||u.username)+'</div><div class="text-xs text-secondary">@'+escapeHtml(u.username)+'</div></div>';
         html += '</div>';
         html += '<div class="flex gap-2">';
@@ -57,7 +57,7 @@ async function loadFriendList() {
       sent.forEach(function(p){
         var u = p.other;
         html += '<div class="card-glass" style="display:flex;align-items:center;padding:16px 20px;margin-bottom:8px">';
-        html += '<div class="comment-avatar" style="width:44px;height:44px;margin-right:12px;' + (u.avatar ? 'background-image:url('+u.avatar+')' : '') + '"></div>';
+        html += '<div class="comment-avatar" style="width:44px;height:44px;margin-right:12px;background-image:url('+avatarUrl(u)+')"></div>';
         html += '<div><div class="font-medium">'+escapeHtml(u.nickname||u.username)+'</div><div class="text-xs text-secondary">等待对方确认</div></div>';
         html += '</div>';
       });
@@ -71,7 +71,7 @@ async function loadFriendList() {
       data.friends.forEach(function(f){
         html += '<div class="card-glass" style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;cursor:pointer" onclick="navigate(\'profile\','+f.id+')">';
         html += '<div class="flex items-center gap-3">';
-        html += '<div class="comment-avatar" style="width:44px;height:44px;cursor:pointer;' + (f.avatar ? 'background-image:url('+f.avatar+')' : '') + '"></div>';
+        html += '<div class="comment-avatar" style="width:44px;height:44px;cursor:pointer;background-image:url('+avatarUrl(f)+')"></div>';
         html += '<div><div class="font-medium">'+escapeHtml(f.nickname||f.username)+'</div><div class="text-xs text-secondary">@'+escapeHtml(f.username)+'</div></div>';
         html += '</div>';
         html += '<div class="flex gap-2">';

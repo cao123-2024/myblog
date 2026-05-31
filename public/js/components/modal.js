@@ -16,14 +16,16 @@ function showModal(title, contentHtml, onConfirm, confirmText) {
     setTimeout(() => {
       const btn = $('#modal-confirm-btn');
       if (btn) btn.addEventListener('click', async () => {
-        try { await onConfirm(); closeModal(); } catch (e) { toast(e.message, 'error'); }
+        btn.disabled = true;
+        try { await onConfirm(); } catch (e) { toast(e.message, 'error'); }
+        closeModal();
       });
     }, 100);
   }
 }
 
-function showConfirm(title, message, onConfirm) {
-  showModal(title, `<p class="text-secondary">${message}</p>`, onConfirm, '确认');
+function showConfirm(title, message, onConfirm, confirmText) {
+  showModal(title, `<p class="text-secondary">${message}</p>`, onConfirm, confirmText || '确认');
 }
 
 function closeModal(e) {

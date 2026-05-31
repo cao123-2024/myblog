@@ -119,9 +119,26 @@ async function createWallpapersTables() {
     await sb.sql`CREATE TABLE IF NOT EXISTS game_rooms (id SERIAL PRIMARY KEY, player1 INTEGER, player2 INTEGER, game_type TEXT DEFAULT 'gomoku', turn INTEGER DEFAULT 1, board TEXT, status TEXT DEFAULT 'active', winner INTEGER, p1_heartbeat TIMESTAMPTZ, p2_heartbeat TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW())`;
     await sb.sql`CREATE TABLE IF NOT EXISTS game_invites (id SERIAL PRIMARY KEY, from_user INTEGER, to_user INTEGER, status TEXT DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT NOW())`;
     console.log('[DB] game tables ready');
+    return;
   } catch(e) {
-    console.error('[DB] tables init:', e.message);
+    console.error('[DB] sb.sql tables init failed:', e.message);
   }
+
+  try {
+    await supabaseApi('POST', '/rest/v1/rpc/create_tables_if_needed', {});
+    console.log('[DB] tables via RPC');
+    return;
+  } catch(e) {
+    console.error('[DB] RPC fallback failed:', e.message);
+  }
+
+  console.error('========================================');
+  console.error('[DB] 新表创建失败！请在 Supabase SQL Editor 执行:');
+  console.error('CREATE TABLE IF NOT EXISTS upload_applies (id SERIAL PRIMARY KEY, user_id INTEGER, status TEXT DEFAULT \'pending\', created_at TIMESTAMPTZ DEFAULT NOW());');
+  console.error('CREATE TABLE IF NOT EXISTS game_queue (id SERIAL PRIMARY KEY, user_id INTEGER, status TEXT DEFAULT \'waiting\', matched_with INTEGER, room_id INTEGER, created_at TIMESTAMPTZ DEFAULT NOW());');
+  console.error('CREATE TABLE IF NOT EXISTS game_rooms (id SERIAL PRIMARY KEY, player1 INTEGER, player2 INTEGER, game_type TEXT DEFAULT \'gomoku\', turn INTEGER DEFAULT 1, board TEXT, status TEXT DEFAULT \'active\', winner INTEGER, p1_heartbeat TIMESTAMPTZ, p2_heartbeat TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW());');
+  console.error('CREATE TABLE IF NOT EXISTS game_invites (id SERIAL PRIMARY KEY, from_user INTEGER, to_user INTEGER, status TEXT DEFAULT \'pending\', created_at TIMESTAMPTZ DEFAULT NOW());');
+  console.error('========================================');
 }
 
 async function enableRlsOnAllTables() {
@@ -150,11 +167,11 @@ async function sbInitDb() {
     });
   }
 
-  await createAnnouncementsTable();
-  await createWallpapersTables();
-  await enableRlsOnAllTables();
-
   supabaseReady = true;
+
+  createAnnouncementsTable().catch(function(e){ console.error('[DB] announcements:', e.message); });
+  createWallpapersTables().catch(function(e){ console.error('[DB] wallpapers:', e.message); });
+  enableRlsOnAllTables().catch(function(e){ console.error('[DB] RLS:', e.message); });
 }
 
 function db(tableName) {

@@ -7,6 +7,18 @@ const router = express.Router();
 
 const ADMIN_PIN = process.env.ADMIN_PIN || '000000';
 
+var _uploadTableOk = false;
+async function ensureUploadTable() {
+  if (_uploadTableOk) return true;
+  try {
+    await db('upload_applies').all();
+    _uploadTableOk = true;
+    return true;
+  } catch(e) {
+    return false;
+  }
+}
+
 router.post('/request-verify', auth, adminOnly, async (req, res) => {
   res.json({ message: '请输入管理员PIN码' });
 });
@@ -122,6 +134,7 @@ router.post('/upload-apply', auth, async (req, res) => {
   if (req.user.can_upload_images || req.user.role === 'admin' || req.user.role === 'semi_admin') {
     return res.status(400).json({ error: '你已有上传权限' });
   }
+  if (!(await ensureUploadTable())) return res.status(503).json({ error: '服务正在初始化，请稍后再试' });
   const existing = await db('upload_applies').findOne({ user_id: req.user.id, status: 'pending' });
   if (existing) return res.json({ message: '已申请过，请等待管理员审核' });
   await db('upload_applies').insert({
@@ -134,6 +147,7 @@ router.post('/upload-apply', auth, async (req, res) => {
 
 router.get('/upload-applies', auth, adminOnly, async (req, res) => {
   try {
+    if (!(await ensureUploadTable())) return res.json({ applies: [] });
     const applies = await db('upload_applies').all();
     const results = await Promise.all(
       applies.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).map(async function(a) {
@@ -148,6 +162,7 @@ router.get('/upload-applies', auth, adminOnly, async (req, res) => {
 });
 
 router.post('/upload-apply/:id/approve', auth, adminOnly, async (req, res) => {
+  if (!(await ensureUploadTable())) return res.status(503).json({ error: '服务正在初始化' });
   const applyId = parseInt(req.params.id);
   const apply = await db('upload_applies').getById(applyId);
   if (!apply) return res.status(404).json({ error: '申请不存在' });
@@ -157,6 +172,7 @@ router.post('/upload-apply/:id/approve', auth, adminOnly, async (req, res) => {
 });
 
 router.post('/upload-apply/:id/reject', auth, adminOnly, async (req, res) => {
+  if (!(await ensureUploadTable())) return res.status(503).json({ error: '服务正在初始化' });
   const applyId = parseInt(req.params.id);
   const apply = await db('upload_applies').getById(applyId);
   if (!apply) return res.status(404).json({ error: '申请不存在' });

@@ -21,12 +21,13 @@ async function loadProfile(wrap, targetId, isMe) {
     else if (u.role === 'semi_admin') roleText = '半管理员';
     var canUpload = u.can_upload_images || Store.isAdmin();
 
+    var avUrl = u.avatar || getDefaultAvatar(u.username);
     wrap.innerHTML = ''
       + '<div class="profile-header card-glass" style="padding:0">'
       + '<div class="profile-bg" style="background-image:url('+(u.bg_image||'')+')"></div>'
       + '<div style="position:relative">'
       + '<div class="profile-avatar-wrap">'
-      + '<div class="profile-avatar-lg" style="background-image:url('+(u.avatar||'')+')"></div>'
+      + '<div class="profile-avatar-lg" style="background-image:url('+avUrl+');background-color:'+(u.avatar?'':'rgba(255,255,255,0.06)')+'"></div>'
       + '</div></div>'
       + '<div class="profile-info">'
       + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">'
@@ -99,8 +100,18 @@ async function editProfileModal() {
     }, '申请权限');
     return;
   }
+  var curAv = (ud.avatar || '');
+  var presetHtml = '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:4px">';
+  PRESET_AVATARS.forEach(function(p){
+    var uri = 'data:image/svg+xml,' + encodeURIComponent(p.svg);
+    var sel = curAv === uri ? 'border:3px solid var(--blue)!important' : '';
+    presetHtml += '<div class="preset-av-item" data-av="'+p.id+'" data-uri="'+escapeHtml(uri)+'" style="width:44px;height:44px;border-radius:50%;background-image:url('+uri+');background-size:cover;cursor:pointer;border:2px solid transparent;transition:all 0.2s ease;'+sel+'" onclick="document.querySelectorAll(\'.preset-av-item\').forEach(function(e){e.style.border=\'2px solid transparent\'});this.style.border=\'3px solid var(--blue)\';window._selectedPresetAv=\''+p.id+'\';document.getElementById(\'edit-avatar\').value=\'\'"></div>';
+  });
+  presetHtml += '</div>';
+
   showModal('编辑资料', ''
-    + '<div class="form-group"><label>头像</label><input type="file" class="input" id="edit-avatar" accept="image/*"></div>'
+    + '<div class="form-group"><label>选择头像</label>'+presetHtml+'</div>'
+    + '<div class="form-group"><label>或上传自定义头像</label><input type="file" class="input" id="edit-avatar" accept="image/*" onchange="document.querySelectorAll(\'.preset-av-item\').forEach(function(e){e.style.border=\'2px solid transparent\'});window._selectedPresetAv=null"></div>'
     + '<div class="form-group"><label>背景图</label><input type="file" class="input" id="edit-bg" accept="image/*"></div>'
     + '<div class="form-group"><label>昵称</label><input class="input input-glass" id="edit-nickname" value="'+escapeHtml(ud.nickname||'')+'"></div>'
     + '<div class="form-group"><label>简介</label><textarea class="input input-glass textarea" id="edit-bio" rows="3">'+escapeHtml(ud.bio||'')+'</textarea></div>'
@@ -110,14 +121,25 @@ async function editProfileModal() {
     var bio = document.getElementById('edit-bio').value.trim();
     if (nn) fd.append('nickname', nn);
     if (bio) fd.append('bio', bio);
-    var av = document.getElementById('edit-avatar').files[0];
-    var bg = document.getElementById('edit-bg').files[0];
-    if (av) fd.append('avatar', await compressProfileImage(av));
-    if (bg) fd.append('bg_image', await compressProfileImage(bg));
+
+    var selAv = window._selectedPresetAv;
+    var avFile = document.getElementById('edit-avatar').files[0];
+    var bgFile = document.getElementById('edit-bg').files[0];
+
+    if (selAv) {
+      var preset = PRESET_AVATARS.find(function(p){ return p.id === selAv; });
+      if (preset) fd.append('avatar_data', 'data:image/svg+xml,' + encodeURIComponent(preset.svg));
+    } else if (avFile) {
+      fd.append('avatar', await compressProfileImage(avFile));
+    }
+    if (bgFile) fd.append('bg_image', await compressProfileImage(bgFile));
+
     var data = await API.uploadPut('/users/profile', fd);
     Store.user = data.user;
     updateNav();
-    if (window.applyWallpaper) applyWallpaper(data.user.bg_image);
+    if (window.applyWallpaper) {
+      applyWallpaper(data.user.bg_image);
+    }
     toast('资料已更新', 'success');
     navigate('profile');
   }, '保存');

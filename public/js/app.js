@@ -122,8 +122,9 @@ function updateNav() {
   if (Store.user) {
     userInfo.classList.remove('hidden');
     $('#nav-username').textContent = Store.user.nickname || Store.user.username;
-    var av = Store.user.avatar || '';
+    var av = Store.user.avatar || getDefaultAvatar(Store.user.username);
     $('#nav-avatar').style.backgroundImage = av ? 'url(' + av + ')' : 'none';
+    $('#nav-avatar').style.backgroundColor = '';
   } else {
     userInfo.classList.add('hidden');
   }
@@ -230,6 +231,34 @@ function escapeHtml(str) {
   if (!str) return '';
   return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+var PRESET_AVATARS = [
+  { id:'av1', svg:'<svg viewBox="0 0 100 100"><rect width="100" height="100" rx="50" fill="#0078D4"/><circle cx="50" cy="38" r="20" fill="#fff"/><ellipse cx="50" cy="90" rx="35" ry="22" fill="#fff"/></svg>' },
+  { id:'av2', svg:'<svg viewBox="0 0 100 100"><rect width="100" height="100" rx="50" fill="#CF222E"/><circle cx="50" cy="38" r="20" fill="#fff"/><ellipse cx="50" cy="90" rx="35" ry="22" fill="#fff"/></svg>' },
+  { id:'av3', svg:'<svg viewBox="0 0 100 100"><rect width="100" height="100" rx="50" fill="#1A7F37"/><circle cx="50" cy="38" r="20" fill="#fff"/><ellipse cx="50" cy="90" rx="35" ry="22" fill="#fff"/></svg>' },
+  { id:'av4', svg:'<svg viewBox="0 0 100 100"><rect width="100" height="100" rx="50" fill="#8250DF"/><circle cx="50" cy="38" r="20" fill="#fff"/><ellipse cx="50" cy="90" rx="35" ry="22" fill="#fff"/></svg>' },
+  { id:'av5', svg:'<svg viewBox="0 0 100 100"><rect width="100" height="100" rx="50" fill="#BF7B00"/><circle cx="50" cy="38" r="20" fill="#fff"/><ellipse cx="50" cy="90" rx="35" ry="22" fill="#fff"/></svg>' },
+  { id:'av6', svg:'<svg viewBox="0 0 100 100"><rect width="100" height="100" rx="50" fill="#D63384"/><circle cx="50" cy="38" r="20" fill="#fff"/><ellipse cx="50" cy="90" rx="35" ry="22" fill="#fff"/></svg>' },
+  { id:'av7', svg:'<svg viewBox="0 0 100 100"><rect width="100" height="100" rx="50" fill="#00C6FF"/><circle cx="50" cy="38" r="20" fill="#fff"/><ellipse cx="50" cy="90" rx="35" ry="22" fill="#fff"/></svg>' },
+  { id:'av8', svg:'<svg viewBox="0 0 100 100"><rect width="100" height="100" rx="50" fill="#6E7681"/><circle cx="50" cy="38" r="20" fill="#fff"/><ellipse cx="50" cy="90" rx="35" ry="22" fill="#fff"/></svg>' }
+];
+
+function getDefaultAvatar(username) {
+  var idx = 0;
+  if (username) {
+    var h = 0;
+    for (var i = 0; i < username.length; i++) h = ((h << 5) - h) + username.charCodeAt(i);
+    idx = Math.abs(h) % PRESET_AVATARS.length;
+  }
+  return 'data:image/svg+xml,' + encodeURIComponent(PRESET_AVATARS[idx].svg);
+}
+window.getDefaultAvatar = getDefaultAvatar;
+
+function avatarUrl(user) {
+  if (!user) return '';
+  return user.avatar || getDefaultAvatar(user.username || '');
+}
+window.avatarUrl = avatarUrl;
 
 function formatDate(d) {
   if (!d) return '';

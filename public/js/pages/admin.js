@@ -67,8 +67,7 @@ function renderAdminPanel() {
     + '<div>'
     + '<h2 style="font-size:1.5rem;font-weight:700">管理员面板</h2>'
     + '<p class="text-sm text-secondary">' + (Store.user.nickname||Store.user.username) + ' · ' + (Store.user.role==='admin'&&!Store.user.created_by?'超级管理员':Store.user.role==='admin'?'管理员':'半管理员') + '</p>'
-    + '</div>'
-    + '<button class="btn btn-glass btn-sm" onclick="Store.logoutAdmin();navigate(\'home\')">退出管理</button>';
+    + '</div>';
   wrap.appendChild(hdr);
 
   /* Quick actions row */
@@ -413,7 +412,10 @@ async function loadUploadPerms() {
       userList.innerHTML = h;
     }
   } catch(e) {
-    console.error(e);
+    var applyList = document.getElementById('up-apply-list');
+    if (applyList) applyList.innerHTML = '<p class="text-sm" style="color:#CF222E">加载失败: '+e.message+'</p>';
+    var userList = document.getElementById('up-user-list');
+    if (userList) userList.innerHTML = '<p class="text-sm" style="color:#CF222E">加载失败</p>';
   }
 }
 

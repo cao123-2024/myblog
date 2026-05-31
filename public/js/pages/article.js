@@ -15,7 +15,7 @@ async function loadArticle(wrap, articleId) {
     var commentsData = await API.get('/comments/article/' + articleId);
     var hasCover = a.cover_image;
     var otherImages = (a.images || []).filter(function(img){ return img !== a.cover_image; });
-    var authorAv = (a.author && a.author.avatar) || '';
+    var authorAv = avatarUrl(a.author);
     var authorName = a.author ? (a.author.nickname || a.author.username) : '未知';
     var roleLabel = '';
     if (a.author) {
@@ -68,7 +68,7 @@ function renderComments(comments) {
   if (comments.length === 0) return '<p class="text-sm text-secondary">暂无评论</p>';
   return comments.map(c => ''
     + '<div class="comment-item">'
-    + '<div class="comment-avatar" style="background-image:url('+(c.author?.avatar||'')+')" onclick="navigate(\'profile\','+c.author?.id+')"></div>'
+    + '<div class="comment-avatar" style="background-image:url('+avatarUrl(c.author)+')" onclick="navigate(\'profile\','+c.author?.id+')"></div>'
     + '<div class="comment-body">'
     + '<div class="flex items-center justify-between">'
     + '<span class="comment-author" onclick="navigate(\'profile\','+c.author?.id+')">'+escapeHtml(c.author?.nickname||c.author?.username||'未知')+'</span>'

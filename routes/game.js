@@ -4,10 +4,32 @@ const { auth } = require('../middleware/auth');
 
 const router = express.Router();
 
+var _tablesOk = false;
+var _tablesWarned = false;
+
+async function ensureTables() {
+  if (_tablesOk) return true;
+  try {
+    await db('game_queue').all();
+    await db('game_rooms').all();
+    await db('game_invites').all();
+    _tablesOk = true;
+    return true;
+  } catch(e) {
+    if (!_tablesWarned) {
+      console.error('[GAME] 游戏表未创建，正在尝试创建...');
+      _tablesWarned = true;
+    }
+    return false;
+  }
+}
+
 /* ========== MATCHMAKING QUEUE ========== */
 
 router.get('/queue', auth, async function(req, res) {
   try {
+    if (!(await ensureTables())) return res.status(503).json({ error: '游戏服务正在初始化，请稍后再试' });
+
     var existing = await db('game_queue').findOne({ user_id: req.user.id, status: 'waiting' });
     if (existing) {
       return res.json({ queued: true, room: null, message: '已在匹配队列中' });
@@ -55,6 +77,8 @@ router.get('/queue', auth, async function(req, res) {
 
 router.get('/queue/status', auth, async function(req, res) {
   try {
+    if (!(await ensureTables())) return res.json({ matched: false });
+
     var entry = await db('game_queue').findOne({ user_id: req.user.id, status: 'matched' });
     if (!entry || !entry.room_id) return res.json({ matched: false });
 
@@ -81,6 +105,8 @@ router.get('/queue/status', auth, async function(req, res) {
 
 router.post('/queue/cancel', auth, async function(req, res) {
   try {
+    if (!(await ensureTables())) return res.json({ success: true });
+
     var entries = await db('game_queue').find({ user_id: req.user.id });
     for (var i = 0; i < entries.length; i++) {
       await db('game_queue').delete(entries[i].id);
@@ -95,6 +121,8 @@ router.post('/queue/cancel', auth, async function(req, res) {
 
 router.get('/room/:id', auth, async function(req, res) {
   try {
+    if (!(await ensureTables())) return res.status(503).json({ error: '游戏服务正在初始化' });
+
     var room = await db('game_rooms').getById(parseInt(req.params.id));
     if (!room) return res.status(404).json({ error: '房间不存在' });
 
@@ -129,6 +157,8 @@ router.get('/room/:id', auth, async function(req, res) {
 
 router.post('/room/:id/move', auth, async function(req, res) {
   try {
+    if (!(await ensureTables())) return res.status(503).json({ error: '游戏服务正在初始化' });
+
     var room = await db('game_rooms').getById(parseInt(req.params.id));
     if (!room || room.status !== 'active') return res.status(400).json({ error: '无效的房间' });
 
@@ -178,6 +208,8 @@ router.post('/room/:id/move', auth, async function(req, res) {
 
 router.post('/room/:id/heartbeat', auth, async function(req, res) {
   try {
+    if (!(await ensureTables())) return res.json({ ok: true });
+
     var room = await db('game_rooms').getById(parseInt(req.params.id));
     if (!room) return res.status(404).json({ error: '房间不存在' });
     var field = room.player1 === req.user.id ? 'p1_heartbeat' : 'p2_heartbeat';
@@ -190,6 +222,8 @@ router.post('/room/:id/heartbeat', auth, async function(req, res) {
 
 router.post('/room/:id/resign', auth, async function(req, res) {
   try {
+    if (!(await ensureTables())) return res.status(503).json({ error: '游戏服务正在初始化' });
+
     var room = await db('game_rooms').getById(parseInt(req.params.id));
     if (!room || room.status !== 'active') return res.status(400).json({ error: '无效的房间' });
     var isP1 = room.player1 === req.user.id, isP2 = room.player2 === req.user.id;
@@ -206,6 +240,8 @@ router.post('/room/:id/resign', auth, async function(req, res) {
 
 router.get('/online-friends', auth, async function(req, res) {
   try {
+    if (!(await ensureTables())) return res.json({ friends: [] });
+
     var allFriends = await db('friends').all();
     var myFriends = allFriends.filter(function(f) {
       return (f.user_id === req.user.id || f.friend_id === req.user.id) && f.status === 'accepted';
@@ -233,6 +269,8 @@ router.get('/online-friends', auth, async function(req, res) {
 
 router.post('/invite/:userId', auth, async function(req, res) {
   try {
+    if (!(await ensureTables())) return res.status(503).json({ error: '游戏服务正在初始化' });
+
     var targetId = parseInt(req.params.userId);
     var existing = await db('game_invites').findOne({
       from_user: req.user.id, to_user: targetId, status: 'pending'
@@ -250,6 +288,8 @@ router.post('/invite/:userId', auth, async function(req, res) {
 
 router.get('/invites/pending', auth, async function(req, res) {
   try {
+    if (!(await ensureTables())) return res.json({ invites: [] });
+
     var invites = await db('game_invites').find({ to_user: req.user.id, status: 'pending' });
     var result = [];
     for (var i = 0; i < invites.length; i++) {
@@ -264,6 +304,8 @@ router.get('/invites/pending', auth, async function(req, res) {
 
 router.post('/invite/:id/accept', auth, async function(req, res) {
   try {
+    if (!(await ensureTables())) return res.status(503).json({ error: '游戏服务正在初始化' });
+
     var invite = await db('game_invites').getById(parseInt(req.params.id));
     if (!invite || invite.to_user !== req.user.id) return res.status(404).json({ error: '邀请不存在' });
     var room = await db('game_rooms').insert({

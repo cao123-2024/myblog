@@ -93,7 +93,7 @@ function initDualMode() {
     + '<div class="card-glass" style="padding:24px;text-align:center;max-width:600px;margin:0 auto">'
     + '<h3 style="font-size:1.1rem;font-weight:600;margin-bottom:20px">双人五子棋</h3>'
     + '<div style="display:flex;align-items:center;justify-content:center;gap:30px;margin-bottom:24px">'
-    + '<div style="text-align:center"><div style="width:64px;height:64px;border-radius:50%;background-size:cover;background-position:center;margin:0 auto 8px;background-color:rgba(255,255,255,0.06);border:2px solid var(--blue);background-image:url('+(Store.user?.avatar||'')+')"></div><div class="text-sm font-medium">'+escapeHtml(Store.user?.nickname||'')+' (你)</div></div>'
+    + '<div style="text-align:center"><div style="width:64px;height:64px;border-radius:50%;background-size:cover;background-position:center;margin:0 auto 8px;background-color:rgba(255,255,255,0.06);border:2px solid var(--blue);background-image:url('+avatarUrl(Store.user)+')"></div><div class="text-sm font-medium">'+escapeHtml(Store.user?.nickname||'')+' (你)</div></div>'
     + '<div style="font-size:2rem;color:var(--text-tertiary)">VS</div>'
     + '<div id="dual-opponent-slot" style="text-align:center"><div style="width:64px;height:64px;border-radius:50%;border:2px dashed rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;margin:0 auto 8px;cursor:pointer;transition:all 0.2s" id="dual-plus-btn" onclick="showDualInviteOptions()"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><div class="text-xs text-secondary">选择对手</div></div>'
     + '</div>'
@@ -117,7 +117,7 @@ function checkIncomingInvites() {
         if (!inv.from) return '';
         return '<div class="card-glass" style="padding:14px 18px;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
           + '<div style="display:flex;align-items:center;gap:10px">'
-          + '<div style="width:36px;height:36px;border-radius:50%;background-size:cover;background-position:center;background-color:rgba(255,255,255,0.06);background-image:url('+escapeHtml(inv.from.avatar||'')+')"></div>'
+          + '<div style="width:36px;height:36px;border-radius:50%;background-size:cover;background-position:center;background-color:rgba(255,255,255,0.06);background-image:url('+avatarUrl(inv.from)+')"></div>'
           + '<span class="text-sm font-medium">'+escapeHtml(inv.from.nickname||inv.from.username)+'<span class="text-xs text-secondary"> 邀请你对战</span></span></div>'
           + '<div style="display:flex;gap:6px">'
           + '<button class="btn btn-primary btn-sm" style="padding:4px 12px;font-size:0.75rem" onclick="acceptDualInvite('+inv.id+')">接受</button>'
@@ -163,9 +163,9 @@ async function loadFriendList() {
     list.innerHTML = friends.map(function(f) {
       var disabled = f.in_game ? 'style="opacity:0.4;pointer-events:none"' : '';
       var tag = f.in_game ? '<span class="text-xs" style="color:#CF222E">对战中</span>' : '<span class="text-xs" style="color:#1A7F37">在线</span>';
-      return '<div class="card-glass" style="padding:10px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;cursor:pointer" '+disabled+' onclick="inviteFriend('+f.id+',\''+escapeHtml(f.nickname||f.username)+'\',\''+escapeHtml(f.avatar||'')+'\')">'
+      return '<div class="card-glass" style="padding:10px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;cursor:pointer" '+disabled+' onclick="inviteFriend('+f.id+',\''+escapeHtml(f.nickname||f.username)+'\',\''+escapeHtml(avatarUrl(f))+'\')">'
         + '<div style="display:flex;align-items:center;gap:10px">'
-        + '<div style="width:36px;height:36px;border-radius:50%;background-size:cover;background-position:center;background-color:rgba(255,255,255,0.06);background-image:url('+escapeHtml(f.avatar||'')+')"></div>'
+        + '<div style="width:36px;height:36px;border-radius:50%;background-size:cover;background-position:center;background-color:rgba(255,255,255,0.06);background-image:url('+avatarUrl(f)+')"></div>'
         + '<span class="text-sm font-medium">'+escapeHtml(f.nickname||f.username)+'</span></div>'
         + tag
         + '</div>';
@@ -206,7 +206,7 @@ async function startRandomMatch() {
   try {
     var d = await API.get('/game/queue');
     if (d.room) {
-      document.getElementById('dual-opponent-slot').innerHTML = '<div style="text-align:center"><div style="width:64px;height:64px;border-radius:50%;background-size:cover;background-position:center;margin:0 auto 8px;background-color:rgba(255,255,255,0.06);background-image:url('+escapeHtml(d.room.opponent?.avatar||'')+')"></div><div class="text-sm font-medium">'+escapeHtml(d.room.opponent?.nickname||'')+'</div></div>';
+      document.getElementById('dual-opponent-slot').innerHTML = '<div style="text-align:center"><div style="width:64px;height:64px;border-radius:50%;background-size:cover;background-position:center;margin:0 auto 8px;background-color:rgba(255,255,255,0.06);background-image:url('+avatarUrl(d.room.opponent)+')"></div><div class="text-sm font-medium">'+escapeHtml(d.room.opponent?.nickname||'')+'</div></div>';
       toast('已匹配到对手!', 'success');
       dualStartGame(d.room);
       return;
@@ -224,7 +224,7 @@ function pollMatchStatus() {
       var d = await API.get('/game/queue/status');
       if (d.matched && d.room) {
         clearInterval(_multiInterval); _multiInterval = null;
-        document.getElementById('dual-opponent-slot').innerHTML = '<div style="text-align:center"><div style="width:64px;height:64px;border-radius:50%;background-size:cover;background-position:center;margin:0 auto 8px;background-color:rgba(255,255,255,0.06);background-image:url('+escapeHtml(d.room.opponent?.avatar||'')+')"></div><div class="text-sm font-medium">'+escapeHtml(d.room.opponent?.nickname||'')+'</div></div>';
+        document.getElementById('dual-opponent-slot').innerHTML = '<div style="text-align:center"><div style="width:64px;height:64px;border-radius:50%;background-size:cover;background-position:center;margin:0 auto 8px;background-color:rgba(255,255,255,0.06);background-image:url('+avatarUrl(d.room.opponent)+')"></div><div class="text-sm font-medium">'+escapeHtml(d.room.opponent?.nickname||'')+'</div></div>';
         document.getElementById('dual-status').innerHTML = '<p class="text-sm" style="color:#1A7F37">已匹配!</p>';
         toast('已匹配到对手!', 'success');
         setTimeout(function(){ dualStartGame(d.room); }, 500);
