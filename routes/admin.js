@@ -196,4 +196,76 @@ router.post('/users/:id/revoke-upload', auth, adminOnly, async (req, res) => {
   res.json({ message: '已取消上传权限' });
 });
 
+/* ===== BAN APPEAL ===== */
+
+router.post('/ban-appeal', auth, async (req, res) => {
+  if (!req.user.banned_until) return res.status(400).json({ error: '你的账号未被封禁' });
+  var existing = await db('ban_appeals').findOne({ user_id: req.user.id, status: 'pending' });
+  if (existing) return res.status(400).json({ error: '你已提交过申诉，请等待管理员处理' });
+  await db('ban_appeals').insert({
+    user_id: req.user.id,
+    reason: (req.body.reason || '').trim().slice(0, 500),
+    status: 'pending',
+    created_at: new Date().toISOString()
+  });
+  res.json({ message: '申诉已提交，请等待管理员处理' });
+});
+
+router.get('/ban-appeals', auth, adminOnly, async (req, res) => {
+  try {
+    var all = await db('ban_appeals').all();
+    all.sort(function(a, b) { return new Date(b.created_at) - new Date(a.created_at); });
+    var result = [];
+    for (var i = 0; i < all.length; i++) {
+      var user = await db('users').getById(all[i].user_id);
+      if (user) { var p = user.password; delete user.password; result.push(Object.assign({}, all[i], { user: user })); }
+    }
+    res.json({ appeals: result });
+  } catch (e) {
+    res.json({ appeals: [] });
+  }
+});
+
+router.post('/ban-appeal/:id/approve', auth, adminOnly, async (req, res) => {
+  if (!isSuperAdmin(req.user)) return res.status(403).json({ error: '只有超级管理员可以处理申诉' });
+  var appeal = await db('ban_appeals').getById(parseInt(req.params.id));
+  if (!appeal) return res.status(404).json({ error: '申诉不存在' });
+  var user = await db('users').getById(appeal.user_id);
+  if (!user) return res.status(404).json({ error: '用户不存在' });
+
+  var reduceMinutes = parseInt(req.body.reduce_minutes) || 0;
+  var msg = (req.body.admin_msg || '').trim().slice(0, 200);
+
+  await db('ban_appeals').update(appeal.id, {
+    status: 'approved',
+    admin_msg: msg,
+    reduced_minutes: reduceMinutes
+  });
+
+  if (user.banned_until) {
+    var remainingMs = new Date(user.banned_until).getTime() - Date.now();
+    if (remainingMs > 0 && reduceMinutes > 0) {
+      var newUntil = new Date(new Date(user.banned_until).getTime() - reduceMinutes * 60 * 1000);
+      if (newUntil.getTime() <= Date.now()) {
+        await db('users').update(user.id, { banned_until: null });
+      } else {
+        await db('users').update(user.id, { banned_until: newUntil.toISOString() });
+      }
+    } else if (reduceMinutes <= 0) {
+      await db('users').update(user.id, { banned_until: null });
+    }
+  }
+
+  res.json({ message: '已处理申诉' });
+});
+
+router.post('/ban-appeal/:id/reject', auth, adminOnly, async (req, res) => {
+  if (!isSuperAdmin(req.user)) return res.status(403).json({ error: '只有超级管理员可以处理申诉' });
+  var appeal = await db('ban_appeals').getById(parseInt(req.params.id));
+  if (!appeal) return res.status(404).json({ error: '申诉不存在' });
+  var msg = (req.body.admin_msg || '').trim().slice(0, 200);
+  await db('ban_appeals').update(appeal.id, { status: 'rejected', admin_msg: msg });
+  res.json({ message: '已驳回申诉' });
+});
+
 module.exports = router;

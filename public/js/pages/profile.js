@@ -91,28 +91,32 @@ function compressProfileImage(file) {
 async function editProfileModal() {
   var ud = window._profileData?.user || Store.user;
   var canUpload = ud.can_upload_images || Store.isAdmin();
-  if (!canUpload) {
-    showConfirm('权限不足', '你目前没有上传头像和背景图的权限，需要向管理员申请。', async function() {
-      try {
-        await API.post('/admin/upload-apply');
-        toast('已向管理员申请上传权限', 'success');
-      } catch(e) { toast(e.message, 'error'); }
-    }, '申请权限');
-    return;
-  }
   var curAv = (ud.avatar || '');
-  var presetHtml = '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:4px">';
+
+  var presetHtml = '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px">';
   PRESET_AVATARS.forEach(function(p){
     var uri = 'data:image/svg+xml,' + encodeURIComponent(p.svg);
     var sel = curAv === uri ? 'border:3px solid var(--blue)!important' : '';
-    presetHtml += '<div class="preset-av-item" data-av="'+p.id+'" data-uri="'+escapeHtml(uri)+'" style="width:44px;height:44px;border-radius:50%;background-image:url('+uri+');background-size:cover;cursor:pointer;border:2px solid transparent;transition:all 0.2s ease;'+sel+'" onclick="document.querySelectorAll(\'.preset-av-item\').forEach(function(e){e.style.border=\'2px solid transparent\'});this.style.border=\'3px solid var(--blue)\';window._selectedPresetAv=\''+p.id+'\';document.getElementById(\'edit-avatar\').value=\'\'"></div>';
+    presetHtml += '<div class="preset-av-item" data-av="'+p.id+'" data-uri="'+escapeHtml(uri)+'" title="'+p.name+'" style="width:44px;height:44px;border-radius:50%;background-image:url('+uri+');background-size:cover;cursor:pointer;border:2px solid transparent;transition:all 0.2s ease;'+sel+'" onclick="document.querySelectorAll(\'.preset-av-item\').forEach(function(e){e.style.border=\'2px solid transparent\'});this.style.border=\'3px solid var(--blue)\';window._selectedPresetAv=\''+p.id+'\';var up=document.getElementById(\'edit-avatar\');if(up)up.value=\'\'"></div>';
   });
   presetHtml += '</div>';
 
+  var uploadSection = '';
+  if (canUpload) {
+    uploadSection = ''
+      + '<div class="form-group" style="border-top:1px solid var(--border-subtle);padding-top:12px"><label>上传自定义头像</label><input type="file" class="input" id="edit-avatar" accept="image/*" onchange="document.querySelectorAll(\'.preset-av-item\').forEach(function(e){e.style.border=\'2px solid transparent\'});window._selectedPresetAv=null"></div>'
+      + '<div class="form-group"><label>资料背景图 (仅详情页显示)</label><input type="file" class="input" id="edit-bg" accept="image/*"></div>';
+  } else {
+    uploadSection = ''
+      + '<div style="border-top:1px solid var(--border-subtle);padding-top:12px;margin-top:4px">'
+      + '<p class="text-xs text-secondary mb-2">上传自定义头像和背景图需要管理员授权</p>'
+      + '<button class="btn btn-glass btn-sm w-full" id="apply-upload-btn" onclick="event.preventDefault();applyUploadPermission()">申请上传权限</button>'
+      + '</div>';
+  }
+
   showModal('编辑资料', ''
     + '<div class="form-group"><label>选择头像</label>'+presetHtml+'</div>'
-    + '<div class="form-group"><label>或上传自定义头像</label><input type="file" class="input" id="edit-avatar" accept="image/*" onchange="document.querySelectorAll(\'.preset-av-item\').forEach(function(e){e.style.border=\'2px solid transparent\'});window._selectedPresetAv=null"></div>'
-    + '<div class="form-group"><label>背景图</label><input type="file" class="input" id="edit-bg" accept="image/*"></div>'
+    + uploadSection
     + '<div class="form-group"><label>昵称</label><input class="input input-glass" id="edit-nickname" value="'+escapeHtml(ud.nickname||'')+'"></div>'
     + '<div class="form-group"><label>简介</label><textarea class="input input-glass textarea" id="edit-bio" rows="3">'+escapeHtml(ud.bio||'')+'</textarea></div>'
   , async function() {
@@ -123,26 +127,32 @@ async function editProfileModal() {
     if (bio) fd.append('bio', bio);
 
     var selAv = window._selectedPresetAv;
-    var avFile = document.getElementById('edit-avatar').files[0];
-    var bgFile = document.getElementById('edit-bg').files[0];
-
     if (selAv) {
       var preset = PRESET_AVATARS.find(function(p){ return p.id === selAv; });
       if (preset) fd.append('avatar_data', 'data:image/svg+xml,' + encodeURIComponent(preset.svg));
-    } else if (avFile) {
-      fd.append('avatar', await compressProfileImage(avFile));
+    } else if (canUpload) {
+      var avEl = document.getElementById('edit-avatar');
+      if (avEl && avEl.files && avEl.files[0]) fd.append('avatar', await compressProfileImage(avEl.files[0]));
     }
-    if (bgFile) fd.append('bg_image', await compressProfileImage(bgFile));
+    if (canUpload) {
+      var bgEl = document.getElementById('edit-bg');
+      if (bgEl && bgEl.files && bgEl.files[0]) fd.append('bg_image', await compressProfileImage(bgEl.files[0]));
+    }
 
     var data = await API.uploadPut('/users/profile', fd);
     Store.user = data.user;
     updateNav();
-    if (window.applyWallpaper) {
-      applyWallpaper(data.user.bg_image);
-    }
     toast('资料已更新', 'success');
     navigate('profile');
   }, '保存');
+}
+
+async function applyUploadPermission() {
+  try {
+    await API.post('/admin/upload-apply');
+    closeModal();
+    toast('已向管理员申请上传权限', 'success');
+  } catch(e) { toast(e.message, 'error'); }
 }
 
 function openSettingsModal() {
@@ -166,31 +176,32 @@ function openSettingsModal() {
 async function loadSettingsWallpapers() {
   var grid = document.getElementById('settings-wp-grid');
   if (!grid) return;
+
+  var STATIC_COUNT = 20;
+  var wps = [];
+  for (var i = 0; i < STATIC_COUNT; i++) {
+    wps.push({ url: '/img/wallpapers/' + i + '.jpg', name: '壁纸 ' + (i + 1) });
+  }
+
   try {
     var d = await API.get('/wallpapers');
-    var wps = d.wallpapers || [];
-    if (wps.length === 0) {
-      var staticCount = 20;
-      wps = [];
-      for (var i = 0; i < staticCount; i++) {
-        wps.push({ url: '/img/wallpapers/' + i + '.jpg', name: '壁纸 ' + (i + 1) });
-      }
-    }
-    var html = '';
-    var curBg = Store.user.bg_image || '';
-    wps.forEach(function(w) {
-      var sel = curBg === w.url ? ' selected' : '';
-      if (curBg && w.url && curBg.replace(/^\/?/, '/') === w.url.replace(/^\/?/, '/')) sel = ' selected';
-      html += '<div class="settings-wp-item' + sel + '" data-url="' + escapeHtml(w.url) + '"'
-        + ' style="aspect-ratio:16/9;border-radius:10px;background-image:url('+escapeHtml(w.url)+');background-size:cover;background-position:center;cursor:pointer;border:2px solid transparent;transition:all 0.2s ease"'
-        + ' onclick="document.querySelectorAll(\'.settings-wp-item\').forEach(function(e){e.classList.remove(\'selected\')});this.classList.add(\'selected\')"'
-        + '></div>';
-    });
-    grid.innerHTML = html;
-    if (sel) grid.querySelector('.selected').scrollIntoView({block:'nearest'});
-  } catch(e) {
-    grid.innerHTML = '<div class="text-center text-secondary p-4">加载失败</div>';
-  }
+    var dbWps = d.wallpapers || [];
+    if (dbWps.length > 0) wps = dbWps;
+  } catch(e) {}
+
+  var html = '';
+  var curBg = Store.user.bg_image || '';
+  wps.forEach(function(w) {
+    var sel = '';
+    if (curBg && w.url && curBg.replace(/^\/?/, '/') === w.url.replace(/^\/?/, '/')) sel = ' selected';
+    html += '<div class="settings-wp-item' + sel + '" data-url="' + escapeHtml(w.url) + '"'
+      + ' style="aspect-ratio:16/9;border-radius:10px;background-image:url('+escapeHtml(w.url)+');background-size:cover;background-position:center;cursor:pointer;border:2px solid transparent;transition:all 0.2s ease"'
+      + ' onclick="document.querySelectorAll(\'.settings-wp-item\').forEach(function(e){e.classList.remove(\'selected\')});this.classList.add(\'selected\')"'
+      + '></div>';
+  });
+  grid.innerHTML = html;
+  var selEl = grid.querySelector('.settings-wp-item.selected');
+  if (selEl) selEl.scrollIntoView({block:'nearest'});
 }
 
 function applyWallpaper(url) {

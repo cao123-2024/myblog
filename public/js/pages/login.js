@@ -222,6 +222,10 @@ async function handleLoginSubmit(){
     }
     triggerBloomAndEnter(data.token, data.user);
   }catch(e){
+    if (e.message && e.message.indexOf('封禁') !== -1) {
+      showBanAppealModal(e.message);
+      return;
+    }
     showFieldError('login-username','用户名或密码错误');
     showFieldError('login-password','用户名或密码错误');
   }
@@ -311,4 +315,22 @@ function triggerBloomAndEnter(token, user, adminToken){
   }
 
   requestAnimationFrame(step);
+}
+
+function showBanAppealModal(banMsg) {
+  var msg = banMsg || '你的账号已被封禁';
+  showModal('账号已被封禁', ''
+    + '<div class="text-center" style="padding:12px 0">'
+    + '<p class="text-secondary mb-4">'+escapeHtml(msg)+'</p>'
+    + '<p class="text-sm text-secondary mb-3">你可以提交申诉说明理由</p>'
+    + '<textarea class="input input-glass textarea" id="appeal-reason" rows="3" placeholder="请说明申诉理由..."></textarea>'
+    + '</div>'
+  , async function() {
+    var reason = document.getElementById('appeal-reason').value.trim();
+    if (!reason) { toast('请输入申诉理由', 'error'); return; }
+    try {
+      await API.post('/admin/ban-appeal', { reason: reason });
+      toast('申诉已提交，请等待管理员处理', 'success');
+    } catch(e) { toast(e.message, 'error'); }
+  }, '提交申诉');
 }

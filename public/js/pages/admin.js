@@ -77,7 +77,8 @@ function renderAdminPanel() {
     + '<button class="btn btn-glass btn-sm admin-tab active" data-tab="users" onclick="switchAdminTab(\'users\')">用户管理</button>'
     + (Store.isSuperAdmin() ? '<button class="btn btn-glass btn-sm admin-tab" data-tab="articles" onclick="switchAdminTab(\'articles\')">发布文章</button>' : '')
     + '<button class="btn btn-glass btn-sm admin-tab" data-tab="wallpapers" onclick="switchAdminTab(\'wallpapers\')">壁纸管理</button>'
-    + '<button class="btn btn-glass btn-sm admin-tab" data-tab="upload-perms" onclick="switchAdminTab(\'upload-perms\')">上传权限</button>';
+    + '<button class="btn btn-glass btn-sm admin-tab" data-tab="upload-perms" onclick="switchAdminTab(\'upload-perms\')">上传权限</button>'
+    + (Store.isSuperAdmin() ? '<button class="btn btn-glass btn-sm admin-tab" data-tab="ban-appeals" onclick="switchAdminTab(\'ban-appeals\')">封禁申诉</button>' : '');
   wrap.appendChild(tabs);
 
   /* Tab content */
@@ -96,6 +97,7 @@ function switchAdminTab(tab) {
   if(tab === 'users') renderUserManager(c);
   else if(tab === 'wallpapers') renderWallpaperManager(c);
   else if(tab === 'upload-perms') renderUploadPerms(c);
+  else if(tab === 'ban-appeals') renderBanAppeals(c);
   else renderArticleCreator(c);
 }
 
@@ -438,5 +440,72 @@ async function revokeUpload(userId) {
   await API.post('/admin/users/'+userId+'/revoke-upload');
   toast('已取消上传权限','success');
   loadUploadPerms();
+}
+
+/* ===== Ban Appeals ===== */
+function renderBanAppeals(container) {
+  container.innerHTML = ''
+    + '<div class="card-glass" style="padding:20px">'
+    + '<h3 style="font-size:1rem;font-weight:600;margin-bottom:16px">封禁申诉</h3>'
+    + '<div id="ban-appeals-list"><div class="text-center text-secondary p-4">加载中...</div></div>'
+    + '</div>';
+  loadBanAppeals();
+}
+
+async function loadBanAppeals() {
+  try {
+    var d = await API.get('/admin/ban-appeals');
+    var appeals = d.appeals || [];
+    var list = document.getElementById('ban-appeals-list');
+    if (!list) return;
+    if (appeals.length === 0) {
+      list.innerHTML = '<p class="text-sm text-secondary">暂无申诉</p>';
+      return;
+    }
+    var html = '';
+    appeals.forEach(function(a) {
+      if (!a.user) return;
+      var statusColor = a.status === 'pending' ? 'color:#BF7B00' : (a.status === 'approved' ? 'color:#1A7F37' : 'color:#CF222E');
+      var statusText = a.status === 'pending' ? '待处理' : (a.status === 'approved' ? '已批准' : '已驳回');
+      html += '<div style="padding:12px 0;border-bottom:1px solid var(--border-subtle)">'
+        + '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">'
+        + '<span class="font-medium">'+escapeHtml(a.user.nickname||a.user.username)+' (@'+escapeHtml(a.user.username)+')</span>'
+        + '<span class="text-xs" style="'+statusColor+'">'+statusText+'</span>'
+        + '</div>'
+        + '<p class="text-sm text-secondary mb-1">原因: '+escapeHtml(a.reason||'未填写')+'</p>'
+        + '<p class="text-xs text-tertiary">'+formatDate(a.created_at)+'</p>';
+      if (a.admin_msg) {
+        html += '<p class="text-xs" style="color:var(--blue)">管理员回复: '+escapeHtml(a.admin_msg)+'</p>';
+      }
+      if (a.status === 'pending') {
+        html += '<div style="margin-top:8px;display:flex;gap:6px;align-items:center">'
+          + '<input class="input input-glass" id="appeal-reduce-'+a.id+'" placeholder="减刑分钟数" style="width:100px;padding:2px 6px;font-size:0.75rem" type="number" value="0">'
+          + '<input class="input input-glass" id="appeal-msg-'+a.id+'" placeholder="回复(可选)" style="flex:1;padding:2px 6px;font-size:0.75rem">'
+          + '<button class="btn btn-primary btn-sm" style="padding:2px 10px;font-size:0.7rem" onclick="approveAppeal('+a.id+')">批准</button>'
+          + '<button class="btn btn-glass btn-sm" style="padding:2px 10px;font-size:0.7rem" onclick="rejectAppeal('+a.id+')">驳回</button>'
+          + '</div>';
+      }
+      html += '</div>';
+    });
+    list.innerHTML = html;
+  } catch(e) {
+    var list = document.getElementById('ban-appeals-list');
+    if (list) list.innerHTML = '<p class="text-sm" style="color:#CF222E">加载失败: '+e.message+'</p>';
+  }
+}
+
+async function approveAppeal(appealId) {
+  var reduce = parseInt(document.getElementById('appeal-reduce-'+appealId).value) || 0;
+  var msg = document.getElementById('appeal-msg-'+appealId).value.trim();
+  await API.post('/admin/ban-appeal/'+appealId+'/approve', { reduce_minutes: reduce, admin_msg: msg });
+  toast('已处理', 'success');
+  loadBanAppeals();
+}
+
+async function rejectAppeal(appealId) {
+  var msg = document.getElementById('appeal-msg-'+appealId).value.trim();
+  await API.post('/admin/ban-appeal/'+appealId+'/reject', { admin_msg: msg });
+  toast('已驳回', 'info');
+  loadBanAppeals();
 }
 

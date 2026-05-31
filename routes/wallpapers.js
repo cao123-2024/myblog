@@ -21,7 +21,7 @@ const upload = multer({
       cb(null, Date.now() + '-' + file.originalname.replace(/[()\s]/g, '-'));
     }
   }),
-  limits: { fileSize: 10 * 1024 * 1024 }
+  limits: { fileSize: 50 * 1024 * 1024 }
 });
 
 router.get('/', auth, async function(req, res) {
@@ -35,9 +35,8 @@ router.get('/', auth, async function(req, res) {
 });
 
 router.post('/set', auth, async function(req, res) {
-  var url = req.body.url;
-  if (url === undefined) return res.status(400).json({ error: 'URL required' });
-  await db('users').update(req.user.id, { bg_image: url || '' });
+  var url = (req.body.url || '').trim();
+  await db('users').update(req.user.id, { bg_image: url });
   var updated = await db('users').getById(req.user.id);
   var safe = Object.assign({}, updated);
   delete safe.password;
@@ -57,7 +56,7 @@ router.post('/upload', auth, adminOnly, upload.single('file'), async function(re
     });
     res.json({ wallpaper: w });
   } catch (e) {
-    res.status(500).json({ error: 'Upload failed: ' + e.message });
+    res.status(500).json({ error: '上传失败: ' + e.message });
   }
 });
 
@@ -72,7 +71,7 @@ router.delete('/:id', auth, adminOnly, async function(req, res) {
     await db('wallpapers').delete(parseInt(req.params.id));
     res.json({ success: true });
   } catch (e) {
-    res.status(500).json({ error: 'Delete failed' });
+    res.status(500).json({ error: '删除失败' });
   }
 });
 
