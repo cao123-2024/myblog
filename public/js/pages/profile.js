@@ -96,9 +96,9 @@ async function editProfileModal() {
 
   var presetHtml = '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px">';
   PRESET_AVATARS.forEach(function(p){
-    var uri = 'data:image/svg+xml,' + encodeURIComponent(p.svg);
+    var uri = 'data:image/svg+xml;base64,' + p.svg;
     var sel = curAv === uri ? 'border:3px solid var(--blue)!important' : '';
-    presetHtml += '<div class="preset-av-item" data-av="'+p.id+'" title="'+p.name+'" style="width:44px;height:44px;border-radius:50%;background-size:cover;cursor:pointer;border:2px solid transparent;transition:all 0.2s;'+sel+';background-image:url('+escapeHtml(uri)+')" onclick="var qs=document.querySelectorAll(\'.preset-av-item\');for(var i=0;i<qs.length;i++)qs[i].style.border=\'2px solid transparent\';this.style.border=\'3px solid var(--blue)\';window._selectedPresetAv=\''+p.id+'\';var up=document.getElementById(\'edit-avatar\');if(up)up.value=\'\'"></div>';
+    presetHtml += '<div class="preset-av-item" data-av="'+p.id+'" title="'+p.name+'" style="width:44px;height:44px;border-radius:50%;background-size:cover;cursor:pointer;border:2px solid transparent;transition:all 0.2s;'+sel+';background-image:url('+uri+')" onclick="var qs=document.querySelectorAll(\'.preset-av-item\');for(var i=0;i<qs.length;i++)qs[i].style.border=\'2px solid transparent\';this.style.border=\'3px solid var(--blue)\';window._selectedPresetAv=\''+p.id+'\';var up=document.getElementById(\'edit-avatar\');if(up)up.value=\'\'"></div>';
   });
   presetHtml += '</div>';
 
@@ -140,7 +140,7 @@ async function editProfileModal() {
     var selAv = window._selectedPresetAv;
     if (selAv) {
       var preset = PRESET_AVATARS.find(function(p){ return p.id === selAv; });
-      if (preset) fd.append('avatar_data', 'data:image/svg+xml,' + encodeURIComponent(preset.svg));
+      if (preset) fd.append('avatar_data', 'data:image/svg+xml;base64,' + preset.svg);
     } else if (canUpload) {
       var avEl = document.getElementById('edit-avatar');
       if (avEl && avEl.files && avEl.files[0]) fd.append('avatar', await compressProfileImage(avEl.files[0]));
@@ -180,8 +180,8 @@ function openSettingsModal() {
     if (!sel) return;
     var url = sel.dataset.url;
     await API.post('/wallpapers/set', { url: url });
-    Store.user.bg_image = url;
-    if (window.applyWallpaper) applyWallpaper(url);
+    Store.user.wallpaper = url;
+    applyWallpaper(url);
     updateNav();
     toast('壁纸已应用', 'success');
   }, '确定');
@@ -205,10 +205,10 @@ async function loadSettingsWallpapers() {
   } catch(e) {}
 
   var html = '';
-  var curBg = Store.user.bg_image || '';
+  var curWp = Store.user.wallpaper || '';
   wps.forEach(function(w) {
     var sel = '';
-    if (curBg && w.url && curBg.replace(/^\/?/, '/') === w.url.replace(/^\/?/, '/')) sel = ' selected';
+    if (curWp && w.url && curWp.replace(/^\/?/, '/') === w.url.replace(/^\/?/, '/')) sel = ' selected';
     html += '<div class="settings-wp-item' + sel + '" data-url="' + escapeHtml(w.url) + '"'
       + ' style="aspect-ratio:16/9;border-radius:10px;background-image:url('+escapeHtml(w.url)+');background-size:cover;background-position:center;cursor:pointer;border:2px solid transparent;transition:all 0.2s ease"'
       + ' onclick="document.querySelectorAll(\'.settings-wp-item\').forEach(function(e){e.classList.remove(\'selected\')});this.classList.add(\'selected\')"'

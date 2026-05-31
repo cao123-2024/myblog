@@ -422,24 +422,32 @@ async function loadUploadPerms() {
 }
 
 async function approveUpload(applyId) {
-  await API.post('/admin/upload-apply/'+applyId+'/approve');
-  toast('已批准','success');
-  loadUploadPerms();
+  try {
+    await API.post('/admin/upload-apply/'+applyId+'/approve');
+    toast('已批准','success');
+    loadUploadPerms();
+  } catch(e) { toast(e.message,'error'); }
 }
 async function rejectUpload(applyId) {
-  await API.post('/admin/upload-apply/'+applyId+'/reject');
-  toast('已拒绝','info');
-  loadUploadPerms();
+  try {
+    await API.post('/admin/upload-apply/'+applyId+'/reject');
+    toast('已拒绝','info');
+    loadUploadPerms();
+  } catch(e) { toast(e.message,'error'); }
 }
 async function grantUpload(userId) {
-  await API.post('/admin/users/'+userId+'/grant-upload');
-  toast('已开通上传权限','success');
-  loadUploadPerms();
+  try {
+    await API.post('/admin/users/'+userId+'/grant-upload');
+    toast('已开通上传权限','success');
+    loadUploadPerms();
+  } catch(e) { toast(e.message,'error'); }
 }
 async function revokeUpload(userId) {
-  await API.post('/admin/users/'+userId+'/revoke-upload');
-  toast('已取消上传权限','success');
-  loadUploadPerms();
+  try {
+    await API.post('/admin/users/'+userId+'/revoke-upload');
+    toast('已取消上传权限','success');
+    loadUploadPerms();
+  } catch(e) { toast(e.message,'error'); }
 }
 
 /* ===== Ban Appeals ===== */

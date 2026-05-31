@@ -57,12 +57,13 @@ router.get('/queue', auth, async function(req, res) {
       var p1 = await db('users').getById(opponent.user_id);
       var p2 = await db('users').getById(req.user.id);
       return res.json({
-        queued: false, room: {
-          id: room.id,
-          opponent: p1 ? { id: p1.id, username: p1.username, nickname: p1.nickname, avatar: p1.avatar } : null,
-          you: p2 ? { id: p2.id, username: p2.username, nickname: p2.nickname, avatar: p2.avatar } : null,
-        }
-      });
+      queued: false, room: {
+        id: room.id,
+        opponent: p1 ? { id: p1.id, username: p1.username, nickname: p1.nickname, avatar: p1.avatar } : null,
+        you: p2 ? { id: p2.id, username: p2.username, nickname: p2.nickname, avatar: p2.avatar } : null,
+        you_color: 2
+      }
+    });
     }
     await db('game_queue').insert({
       user_id: req.user.id,
@@ -96,6 +97,7 @@ router.get('/queue/status', auth, async function(req, res) {
         id: room.id,
         opponent: opp ? { id: opp.id, username: opp.username, nickname: opp.nickname, avatar: opp.avatar } : null,
         you: me ? { id: me.id, username: me.username, nickname: me.nickname, avatar: me.avatar } : null,
+        you_color: room.player1 === req.user.id ? 1 : 2
       }
     });
   } catch (e) {
@@ -238,6 +240,31 @@ router.post('/room/:id/resign', auth, async function(req, res) {
 
 /* ========== FRIEND INVITES ========== */
 
+router.get('/my-room', auth, async function(req, res) {
+  try {
+    if (!(await ensureTables())) return res.json({ room: null });
+    var allRooms = await db('game_rooms').all();
+    var activeRoom = allRooms.find(function(r) {
+      return r.status === 'active' && (r.player1 === req.user.id || r.player2 === req.user.id);
+    });
+    if (!activeRoom) return res.json({ room: null });
+    var isP1 = activeRoom.player1 === req.user.id;
+    var oppId = isP1 ? activeRoom.player2 : activeRoom.player1;
+    var opp = await db('users').getById(oppId);
+    var me = await db('users').getById(req.user.id);
+    res.json({
+      room: {
+        id: activeRoom.id,
+        opponent: opp ? { id: opp.id, username: opp.username, nickname: opp.nickname, avatar: opp.avatar } : null,
+        you: me ? { id: me.id, username: me.username, nickname: me.nickname, avatar: me.avatar } : null,
+        you_color: isP1 ? 1 : 2
+      }
+    });
+  } catch (e) {
+    res.json({ room: null });
+  }
+});
+
 router.get('/online-friends', auth, async function(req, res) {
   try {
     if (!(await ensureTables())) return res.json({ friends: [] });
@@ -246,9 +273,12 @@ router.get('/online-friends', auth, async function(req, res) {
     var myFriends = allFriends.filter(function(f) {
       return (f.user_id === req.user.id || f.friend_id === req.user.id) && f.status === 'accepted';
     });
+    var seen = {};
     var result = [];
     for (var i = 0; i < myFriends.length; i++) {
       var fid = myFriends[i].user_id === req.user.id ? myFriends[i].friend_id : myFriends[i].user_id;
+      if (seen[fid]) continue;
+      seen[fid] = true;
       var fu = await db('users').getById(fid);
       if (fu) {
         var allRooms = await db('game_rooms').all();
@@ -321,6 +351,7 @@ router.post('/invite/:id/accept', auth, async function(req, res) {
         id: room.id,
         opponent: p1 ? { id: p1.id, username: p1.username, nickname: p1.nickname, avatar: p1.avatar } : null,
         you: p2 ? { id: p2.id, username: p2.username, nickname: p2.nickname, avatar: p2.avatar } : null,
+        you_color: 2
       }
     });
   } catch (e) {

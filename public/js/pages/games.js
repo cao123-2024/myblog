@@ -191,10 +191,21 @@ function pollInviteResponse(userId) {
       var d = await API.get('/game/invites/pending');
       var invites = (d.invites || []).filter(function(i){ return i.from && i.from.id === userId; });
       if (invites.length === 0) {
-        checkForRoom();
+        clearInterval(_multiInterval); _multiInterval = null;
+        findActiveRoom();
       }
     } catch (e) {}
   }, 1500);
+}
+
+async function findActiveRoom() {
+  try {
+    var d = await API.get('/game/my-room');
+    if (d.room) {
+      toast('对战已开始!', 'success');
+      dualStartGame(d.room);
+    }
+  } catch (e) {}
 }
 
 function cancelInvite() {
@@ -240,12 +251,6 @@ function cancelMatch() {
 }
 
 /* ===== DUAL GAME FULLSCREEN ===== */
-async function checkForRoom() {
-  try {
-    var d = await API.get('/game/invites/pending');
-  } catch (e) {}
-}
-
 function dualStartGame(room) {
   if (_multiInterval) { clearInterval(_multiInterval); _multiInterval = null; }
   _multiRoomId = room.id;
@@ -253,6 +258,8 @@ function dualStartGame(room) {
   _gameActive = 'multi-gomoku';
 
   var oppName = room.opponent ? (room.opponent.nickname || room.opponent.username) : '对手';
+  var myColorLabel = _multiMyColor === 1 ? '执黑' : '执白';
+  var isMyTurn = true;
 
   var overlay = document.createElement('div');
   overlay.id = 'gomoku-overlay';
@@ -262,13 +269,13 @@ function dualStartGame(room) {
   var header = document.createElement('div');
   header.style.cssText = 'position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;z-index:10';
   header.innerHTML = '<div style="color:#ccc;font-size:0.85rem">VS '+escapeHtml(oppName)+'</div>'
-    + '<span style="color:#ccc;font-weight:600">五子棋 · 双人对战</span>'
+    + '<span style="color:#ccc;font-weight:600">五子棋 · 双人对战 ('+myColorLabel+')</span>'
     + '<button id="gmk-resign" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,80,80,0.3);color:#ef4444;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:0.85rem">认输</button>';
   overlay.appendChild(header);
 
   var status = document.createElement('div');
   status.style.cssText = 'color:#ccc;font-weight:500;font-size:0.95rem;text-align:center;margin-bottom:8px;min-height:24px';
-  status.textContent = _multiMyColor === 1 ? '你的回合 · 执黑' : '你的回合 · 执白';
+  status.textContent = _multiMyColor === 1 ? '你的回合' : '对手回合，等待中...';
   overlay.appendChild(status);
 
   var SZ = 15, CELL = 34, B = 5, CW = CELL * SZ + 10;
@@ -282,10 +289,11 @@ function dualStartGame(room) {
   document.getElementById('gmk-resign').onclick = function() {
     API.post('/game/room/' + _multiRoomId + '/resign').catch(function(){});
     document.body.removeChild(overlay); _gameActive = null;
+    if (_multiInterval) { clearInterval(_multiInterval); _multiInterval = null; }
     toast('你认输了', 'info');
   };
 
-  /* Board state & draw */
+  /* Board state */
   var board = Array.from({length:SZ}, function(){return Array(SZ).fill(0)});
   var gameOver = false, lastMove = null;
 
@@ -302,24 +310,26 @@ function dualStartGame(room) {
 
   canvas.addEventListener('click', function(e){
     if(gameOver)return;
+    if (!isMyTurn) { toast('不是你的回合', 'error'); return; }
     var rect=canvas.getBoundingClientRect();
     var sx=CW/rect.width,sy=CW/rect.height;
     var mx=(e.clientX-rect.left)*sx,my=(e.clientY-rect.top)*sy;
     var x=Math.round((mx-B)/CELL),y=Math.round((my-B)/CELL);
     if(x<0||x>=SZ||y<0||y>=SZ||board[y][x]!==0)return;
+    isMyTurn = false;
     board[y][x]=_multiMyColor;lastMove={x:x,y:y};drawBoard();
     API.post('/game/room/'+_multiRoomId+'/move',{x:x,y:y}).then(function(r){
       var rm=r.room;
-      if(rm.status==='finished'){gameOver=true;status.textContent=rm.winner===Store.user.id?'你赢了!':'你输了';toast(rm.winner===Store.user.id?'你赢了!':'你输了','info');return}
       status.textContent='对手回合...';
-    }).catch(function(e2){toast(e2.message,'error');board[y][x]=0;lastMove=null;drawBoard()});
+      if(rm.status==='finished'){gameOver=true;status.textContent=rm.winner===Store.user.id?'你赢了!':'你输了';toast(rm.winner===Store.user.id?'你赢了!':'你输了','info')}
+    }).catch(function(e2){toast(e2.message,'error');board[y][x]=0;lastMove=null;isMyTurn=true;drawBoard()});
   });
 
   drawBoard();
-  dualPollRoom(canvas, overlay, board, status, lastMove, gameOver, SZ, CELL, B, CW, oppName);
+  dualPollRoom(canvas, overlay, board, status, lastMove, gameOver, SZ, CELL, B, CW, oppName, isMyTurn);
 }
 
-function dualPollRoom(canvas, overlay, board, status, lastMoveRef, gameOverRef, SZ, CELL, B, CW, oppName) {
+function dualPollRoom(canvas, overlay, board, status, lastMoveRef, gameOverRef, SZ, CELL, B, CW, oppName, isMyTurnRef) {
   if (_multiInterval) clearInterval(_multiInterval);
   _multiInterval = setInterval(async function() {
     try {
@@ -344,7 +354,7 @@ function dualPollRoom(canvas, overlay, board, status, lastMoveRef, gameOverRef, 
       if (r.status === 'finished') {
         clearInterval(_multiInterval); _multiInterval = null;
         var won = r.winner === Store.user.id;
-        document.getElementById('gomoku-overlay').querySelectorAll('div')[2].textContent = won ? '你赢了!' : '你输了';
+        status.textContent = won ? '你赢了!' : '你输了';
         toast(won ? '你赢了!' : '你输了', won ? 'success' : 'error');
         setTimeout(function(){
           var html2 = '<div class="text-center"><p class="mb-4">'+(won?'恭喜你赢了!':'你输了...')+'</p>'
@@ -366,9 +376,11 @@ function dualPollRoom(canvas, overlay, board, status, lastMoveRef, gameOverRef, 
         board = newBoard.map(function(row){return row.slice()});
         drawBoardDual(canvas, board, lastMoveRef, SZ, CELL, B, CW);
         if (r.turn === _multiMyColor) {
-          document.getElementById('gomoku-overlay').querySelectorAll('div')[2].textContent = '你的回合';
+          status.textContent = '你的回合';
+          isMyTurnRef = true;
         } else {
-          document.getElementById('gomoku-overlay').querySelectorAll('div')[2].textContent = '对手回合...';
+          status.textContent = '对手回合...';
+          isMyTurnRef = false;
         }
       }
     } catch (e) {}
