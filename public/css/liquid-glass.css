@@ -97,6 +97,13 @@ body::before {
   background: var(--bg-page);
 }
 
+body.has-wallpaper::before {
+  background-image: var(--wallpaper);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+
 /* ============================================================
    LIQUID GLASS PANEL — Water droplet
    Ultra-transparent, high blur, edge refraction, soft shadow

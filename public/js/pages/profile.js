@@ -27,7 +27,7 @@ async function loadProfile(wrap, targetId, isMe) {
       + '<div class="profile-bg" style="background-image:url('+(u.bg_image||'')+')"></div>'
       + '<div style="position:relative">'
       + '<div class="profile-avatar-wrap">'
-      + '<div class="profile-avatar-lg" style="background-image:url('+avUrl+');background-color:'+(u.avatar?'':'rgba(255,255,255,0.06)')+'"></div>'
+      + '<div class="profile-avatar-lg" style="background-image:url(\''+avUrl+'\');background-color:'+(u.avatar?'':'rgba(255,255,255,0.06)')+'"></div>'
       + '</div></div>'
       + '<div class="profile-info">'
       + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">'
@@ -98,7 +98,7 @@ async function editProfileModal() {
   PRESET_AVATARS.forEach(function(p){
     var uri = 'data:image/svg+xml;base64,' + p.svg;
     var sel = curAv === uri ? 'border:3px solid var(--blue)!important' : '';
-    presetHtml += '<div class="preset-av-item" data-av="'+p.id+'" title="'+p.name+'" style="width:44px;height:44px;border-radius:50%;background-size:cover;cursor:pointer;border:2px solid transparent;transition:all 0.2s;'+sel+';background-image:url('+uri+')" onclick="var qs=document.querySelectorAll(\'.preset-av-item\');for(var i=0;i<qs.length;i++)qs[i].style.border=\'2px solid transparent\';this.style.border=\'3px solid var(--blue)\';window._selectedPresetAv=\''+p.id+'\';var up=document.getElementById(\'edit-avatar\');if(up)up.value=\'\'"></div>';
+    presetHtml += '<div class="preset-av-item" data-av="'+p.id+'" title="'+p.name+'" style="width:44px;height:44px;border-radius:50%;background-size:cover;cursor:pointer;border:2px solid transparent;transition:all 0.2s;'+sel+';background-image:url(\''+uri+'\')" onclick="var qs=document.querySelectorAll(\'.preset-av-item\');for(var i=0;i<qs.length;i++)qs[i].style.border=\'2px solid transparent\';this.style.border=\'3px solid var(--blue)\';window._selectedPresetAv=\''+p.id+'\';var up=document.getElementById(\'edit-avatar\');if(up)up.value=\'\'"></div>';
   });
   presetHtml += '</div>';
 
@@ -171,21 +171,41 @@ async function applyUploadPermission() {
 }
 
 function openSettingsModal() {
-  var html = '<div class="form-group"><label>选择壁纸</label></div>'
+  var html = '<div class="form-group"><label>选择壁纸（点击图片选中，再点确认）</label></div>'
     + '<div id="settings-wp-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-height:360px;overflow-y:auto;padding:4px">'
     + '<div class="text-center text-secondary p-4">加载中...</div>'
-    + '</div>';
+    + '</div>'
+    + '<div style="margin-top:12px"><button class="btn btn-glass btn-sm" id="btn-clear-wallpaper" type="button">清除壁纸</button></div>';
   showModal('设置', html, async function() {
     var sel = document.querySelector('#settings-wp-grid .selected');
-    if (!sel) return;
-    var url = sel.dataset.url;
+    var isClear = window._clearWallpaper;
+    window._clearWallpaper = false;
+    var url = '';
+    if (isClear) {
+      url = '';
+    } else if (!sel) {
+      throw new Error('请先点击选择一张壁纸，再点确定');
+    } else {
+      url = sel.dataset.url;
+    }
     await API.post('/wallpapers/set', { url: url });
     Store.user.wallpaper = url;
     applyWallpaper(url);
     updateNav();
-    toast('壁纸已应用', 'success');
+    closeModal();
+    toast(isClear ? '壁纸已清除' : '壁纸已应用', 'success');
   }, '确定');
   loadSettingsWallpapers();
+  setTimeout(function() {
+    var clearBtn = document.getElementById('btn-clear-wallpaper');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', function() {
+        window._clearWallpaper = true;
+        var confirmBtn = document.getElementById('modal-confirm-btn');
+        if (confirmBtn) confirmBtn.click();
+      });
+    }
+  }, 150);
 }
 
 async function loadSettingsWallpapers() {
@@ -221,15 +241,11 @@ async function loadSettingsWallpapers() {
 
 function applyWallpaper(url) {
   if (url) {
-    document.body.style.backgroundImage = 'url('+url+')';
-    document.body.style.backgroundSize = 'cover';
-    document.body.style.backgroundPosition = 'center';
-    document.body.style.backgroundAttachment = 'fixed';
+    document.body.classList.add('has-wallpaper');
+    document.body.style.setProperty('--wallpaper', 'url(' + url + ')');
   } else {
-    document.body.style.backgroundImage = '';
-    document.body.style.backgroundSize = '';
-    document.body.style.backgroundPosition = '';
-    document.body.style.backgroundAttachment = '';
+    document.body.classList.remove('has-wallpaper');
+    document.body.style.removeProperty('--wallpaper');
   }
 }
 window.applyWallpaper = applyWallpaper;

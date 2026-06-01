@@ -160,6 +160,21 @@ async function createWallpapersTables() {
     console.error('[DB] WARNING: 无法给 users 表添加 can_upload_images 列，上传权限功能将不可用');
   }
 
+  var lastSeenColOk = await execSql("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen TIMESTAMPTZ");
+  if (!lastSeenColOk) {
+    console.error('[DB] WARNING: 无法给 users 表添加 last_seen 列，在线状态功能将不可用');
+  }
+
+  var inviteGtColOk = await execSql("ALTER TABLE game_invites ADD COLUMN IF NOT EXISTS game_type TEXT DEFAULT 'gomoku'");
+  if (!inviteGtColOk) {
+    console.error('[DB] WARNING: 无法给 game_invites 表添加 game_type 列');
+  }
+
+  var queueGtColOk = await execSql("ALTER TABLE game_queue ADD COLUMN IF NOT EXISTS game_type TEXT DEFAULT 'gomoku'");
+  if (!queueGtColOk) {
+    console.error('[DB] WARNING: 无法给 game_queue 表添加 game_type 列');
+  }
+
   if (ok) {
     console.log('[DB] all extra tables ready');
   } else {

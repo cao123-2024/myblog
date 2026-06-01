@@ -123,7 +123,7 @@ function updateNav() {
     userInfo.classList.remove('hidden');
     $('#nav-username').textContent = Store.user.nickname || Store.user.username;
     var av = Store.user.avatar || getDefaultAvatar(Store.user.username);
-    $('#nav-avatar').style.backgroundImage = av ? 'url(' + av + ')' : 'none';
+    $('#nav-avatar').style.backgroundImage = av ? "url('" + av + "')" : 'none';
     $('#nav-avatar').style.backgroundColor = '';
   } else {
     userInfo.classList.add('hidden');
