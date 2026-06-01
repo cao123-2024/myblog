@@ -127,6 +127,11 @@ async function main() {
   write(box(info) + '\n\n');
   write(SH);
 
+  /* 自动提交到 GitHub */
+  try {
+    require('child_process').execSync('node scripts/autocommit.js', { cwd: ROOT, stdio: 'inherit' });
+  } catch (_) {}
+
   /* 启动 server，日志自然流出 */
   const child = spawn(NODE_EXE, ['server.js'], {
     cwd: ROOT, stdio: 'inherit', env: { ...process.env, FORCE_COLOR: '1' },

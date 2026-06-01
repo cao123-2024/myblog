@@ -502,4 +502,153 @@ function startGomokuRound(diff) {
 
   function drawBoard(){
     var ctx=cvs.getContext('2d'); ctx.fillStyle='#1a1a1a';ctx.fillRect(0,0,CW,CW);ctx.strokeStyle='rgba(255,255,255,0.10)';
-    for(var i=0;i<SZ;i++){ctx.beginPath();ctx.moveTo(B,B+i*CELL);ctx.lineTo(B+(SZ-1)*CELL,B+i*CELL);ctx.stroke();ctx.beginPath();ctx.moveTo(B+i*CELL,B);ctx.lineTo(B+i*CELL,B+(SZ-1)*CELL);ctx.stroke();
+    for(var i=0;i<SZ;i++){ctx.beginPath();ctx.moveTo(B,B+i*CELL);ctx.lineTo(B+(SZ-1)*CELL,B+i*CELL);ctx.stroke();ctx.beginPath();ctx.moveTo(B+i*CELL,B);ctx.lineTo(B+i*CELL,B+(SZ-1)*CELL);ctx.stroke();}
+    var stars=[[3,3],[3,7],[3,11],[7,3],[7,7],[7,11],[11,3],[11,7],[11,11]];ctx.fillStyle='rgba(255,255,255,0.3)';stars.forEach(function(p){ctx.beginPath();ctx.arc(B+p[0]*CELL,B+p[1]*CELL,2.5,0,Math.PI*2);ctx.fill();});
+    for(var y=0;y<SZ;y++)for(var x=0;x<SZ;x++){if(!board[y][x])continue;var cx=B+x*CELL,cy=B+y*CELL,r=CELL*0.42;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);var g=ctx.createRadialGradient(cx-r*0.3,cy-r*0.3,r*0.1,cx,cy,r);if(board[y][x]===1){g.addColorStop(0,'#fff');g.addColorStop(1,'#aaa');}else{g.addColorStop(0,'#333');g.addColorStop(1,'#000');}ctx.fillStyle=g;ctx.fill();}
+    if(lastMove){var lx=B+lastMove.x*CELL,ly=B+lastMove.y*CELL;ctx.strokeStyle='#FFD700';ctx.lineWidth=2;ctx.beginPath();ctx.arc(lx,ly,CELL*0.44,0,Math.PI*2);ctx.stroke();ctx.lineWidth=1;}
+  }
+  function chkWin(bx,by){var me=board[by][bx];for(var d=0;d<4;d++){var cnt=1;for(var s=1;s<5;s++){var nx=bx+DIRS[d][0]*s,ny=by+DIRS[d][1]*s;if(nx>=0&&nx<SZ&&ny>=0&&ny<SZ&&board[ny][nx]===me)cnt++;else break;}for(var s=1;s<5;s++){var nx=bx-DIRS[d][0]*s,ny=by-DIRS[d][1]*s;if(nx>=0&&nx<SZ&&ny>=0&&ny<SZ&&board[ny][nx]===me)cnt++;else break;}if(cnt>=5)return true;}return false;}
+  var ps=[];for(var y=0;y<SZ;y++){ps[y]=[];for(var x=0;x<SZ;x++){var c2=SZ/2-1;ps[y][x]=SZ-Math.max(Math.abs(x-c2),Math.abs(y-c2));}}
+  function getCans(r){r=r||2;var near=[];for(var y=0;y<SZ;y++){near[y]=[];for(var x=0;x<SZ;x++)near[y][x]=false;}var f=false;for(var y=0;y<SZ;y++)for(var x=0;x<SZ;x++){if(board[y][x]!==0){f=true;for(var dy=-r;dy<=r;dy++)for(var dx=-r;dx<=r;dx++){var ny=y+dy,nx=x+dx;if(nx>=0&&nx<SZ&&ny>=0&&ny<SZ&&board[ny][nx]===0)near[ny][nx]=true;}}}if(!f)return[[7,7]];var out=[];for(var y=0;y<SZ;y++)for(var x=0;x<SZ;x++){if(near[y][x])out.push([x,y]);}return out;}
+  var FIVE=7,L4=6,S4=5,L3=4,S3=3,L2=2,S2=1;
+  var evR=[],evC=[[],[]];for(var y=0;y<SZ;y++){evR[y]=[];for(var x=0;x<SZ;x++)evR[y][x]=[0,0,0,0];}for(var c=0;c<2;c++){evC[c]=[];for(var i=0;i<8;i++)evC[c][i]=0;}
+  function gL(bx,by,di,you){var l=Array(9).fill(you);var tx=bx-5*DIRS[di][0],ty=by-5*DIRS[di][1];for(var i=0;i<9;i++){tx+=DIRS[di][0];ty+=DIRS[di][1];if(tx>=0&&tx<SZ&&ty>=0&&ty<SZ)l[i]=board[ty][tx];}return l;}
+  function sR(X,Y,l,r,di){var tx=X+(-5+l)*DIRS[di][0],ty=Y+(-5+l)*DIRS[di][1];for(var i=l;i<r;i++){tx+=DIRS[di][0];ty+=DIRS[di][1];if(ty>=0&&ty<SZ&&tx>=0&&tx<SZ)evR[ty][tx][di]=1;}}
+  function aL(bx,by,di,me,you,cnt){var line=gL(bx,by,di,you);var li=4,ri=4;while(ri<8&&line[ri+1]===me)ri++;while(li>0&&line[li-1]===me)li--;var lr=li,rr=ri;while(rr<8&&line[rr+1]!==you)rr++;while(lr>0&&line[lr-1]!==you)lr--;var range=rr-lr+1;if(range<5){sR(bx,by,lr,rr,di);return;}sR(bx,by,li,ri,di);var mR=ri-li+1;if(mR===5){cnt[FIVE]++;return;}if(mR===4){var le=line[li-1]===0,re=line[ri+1]===0;cnt[le&&re?L4:(le||re?S4:0)]++;return;}if(mR===3){var le=line[li-1]===0,re=line[ri+1]===0;var l4=false,r4=false;if(le&&line[li-2]===me){sR(bx,by,li-2,li-1,di);cnt[S4]++;l4=true;}if(re&&line[ri+2]===me){sR(bx,by,ri+1,ri+2,di);cnt[S4]++;r4=true;}if(l4||r4)return;if(le&&re){if(range>5)cnt[L3]++;else cnt[S3]++;return;}if(le||re){cnt[S3]++;return;}return;}if(mR===2){var le=line[li-1]===0,re=line[ri+1]===0;var l3=false,r3=false;if(le&&line[li-2]===me){sR(bx,by,li-2,li-1,di);if(line[li-3]===0){if(re)cnt[L3]++;else cnt[S3]++;l3=true;}else if(line[li-3]===you&&re){cnt[S3]++;l3=true;}}if(re&&line[ri+2]===me){if(line[ri+3]===me){sR(bx,by,ri+1,ri+2,di);cnt[S4]++;r3=true;}else if(line[ri+3]===0){if(le)cnt[L3]++;else cnt[S3]++;r3=true;}else if(le){cnt[S3]++;r3=true;}}if(l3||r3)return;if(le&&re)cnt[L2]++;else if(le||re)cnt[S2]++;return;}if(mR===1){var le2=line[li-1]===0,re2=line[ri+1]===0;if(le2&&line[li-2]===me&&line[li-3]===0&&line[ri+1]===you)cnt[S2]++;if(re2&&line[ri+2]===me&&line[ri+3]===0){if(le2)cnt[L2]++;else cnt[S2]++;}}}
+  function fEv(){for(var c=0;c<2;c++)for(var i=0;i<8;i++)evC[c][i]=0;for(var y=0;y<SZ;y++)for(var x=0;x<SZ;x++)evR[y][x]=[0,0,0,0];for(var y=0;y<SZ;y++)for(var x=0;x<SZ;x++){if(board[y][x]===0)continue;for(var d=0;d<4;d++){if(evR[y][x][d])continue;var me=board[y][x];aL(x,y,d,me,me===1?2:1,evC[me-1]);}}var my=evC[1],yr=evC[0];if(my[FIVE])return 100000;if(yr[FIVE])return-100000;if(my[S4]>=2)my[L4]++;if(yr[S4]>=2)yr[L4]++;if(yr[L4])return-9050;if(yr[S4])return-9040;if(my[L4])return 9030;if(my[S4]&&my[L3])return 9020;if(yr[L3]&&my[S4]===0)return-9010;if(my[L3]>1&&yr[L3]===0&&yr[S3]===0)return 9000;var ms=0,os=0;if(my[S4])ms+=2000;if(my[L3]>1)ms+=500;else if(my[L3]>0)ms+=100;if(yr[L3]>1)os+=2000;else if(yr[L3]>0)os+=400;if(my[S3])ms+=my[S3]*10;if(yr[S3])os+=yr[S3]*10;if(my[L2])ms+=my[L2]*4;if(yr[L2])os+=yr[L2]*4;if(my[S2])ms+=my[S2]*4;if(yr[S2])os+=yr[S2]*4;return ms-os;}
+  function sEv(){var best=-Infinity,bx=7,by=7;for(var y=0;y<SZ;y++)for(var x=0;x<SZ;x++){if(board[y][x]!==0)continue;var atk=0,def=0;for(var d=0;d<4;d++){var a=0;for(var s=1;s<=4;s++){var nx=x+DIRS[d][0]*s,ny=y+DIRS[d][1]*s;if(nx>=0&&nx<SZ&&ny>=0&&ny<SZ&&board[ny][nx]===2)a++;else break;}for(var s=1;s<=4;s++){var nx=x-DIRS[d][0]*s,ny=y-DIRS[d][1]*s;if(nx>=0&&nx<SZ&&ny>=0&&ny<SZ&&board[ny][nx]===2)a++;else break;}atk+=a*a;var dd=0;for(var s=1;s<=4;s++){var nx=x+DIRS[d][0]*s,ny=y+DIRS[d][1]*s;if(nx>=0&&nx<SZ&&ny>=0&&ny<SZ&&board[ny][nx]===1)dd++;else break;}for(var s=1;s<=4;s++){var nx=x-DIRS[d][0]*s,ny=y-DIRS[d][1]*s;if(nx>=0&&nx<SZ&&ny>=0&&ny<SZ&&board[ny][nx]===1)dd++;else break;}def+=dd>=3?100:dd>=2?20:dd;}var cx3=SZ/2-1,center=SZ-Math.max(Math.abs(x-cx3),Math.abs(y-cx3));var sc=Math.max(atk*10,def*1.2)+center*0.5+Math.random()*2;if(sc>best){best=sc;bx=x;by=y;}}return[bx,by];}
+  var MAX_D=(diff==='master'?4:2);
+  function tSc(x,y){var sc=0;for(var d=0;d<4;d++){var dx=DIRS[d][0],dy=DIRS[d][1];var w=[0,0,0,0,0,0,0,0,0];for(var s=-4;s<=4;s++){var nx=x+dx*s,ny=y+dy*s;w[s+4]=(nx>=0&&nx<SZ&&ny>=0&&ny<SZ)?board[ny][nx]:-1;}var meL=0,meR=0,yrL=0,yrR=0;for(var s=1;s<=4;s++){if(w[4+s]===2)meR++;else break;}for(var s=1;s<=4;s++){if(w[4-s]===2)meL++;else break;}for(var s=1;s<=4;s++){if(w[4+s]===1)yrR++;else break;}for(var s=1;s<=4;s++){if(w[4-s]===1)yrL++;else break;}sc+=(meL+meR)*50+(yrL+yrR)*30;for(var start=0;start<=4;start++){var pCnt=0,aCnt=0;for(var i=0;i<5;i++){if(w[start+i]===1)pCnt++;else if(w[start+i]===2)aCnt++;}if(pCnt===4)return 1000001;if(pCnt===3&&aCnt===0)sc+=80000;if(aCnt>=4)sc+=500000;if(aCnt===3&&pCnt===0)sc+=40000;}}return sc;}
+  function sC(cands,limit){for(var i=0;i<cands.length;i++)cands[i].push(tSc(cands[i][0],cands[i][1]));cands.sort(function(a,b){return b[2]-a[2]||ps[b[1]][b[0]]-ps[a[1]][a[0]];});if(limit&&cands.length>limit)cands=cands.slice(0,limit);return cands;}
+  function mm(depth,alpha,beta,maxi){if(depth===0){var ev=fEv();if(ev>=100000)return ev+depth;if(ev<=-100000)return ev-depth;return ev;}var cands=getCans(3);cands=sC(cands,25);if(maxi){var best=-Infinity;for(var i=0;i<cands.length;i++){var x=cands[i][0],y=cands[i][1];if(board[y][x]!==0)continue;board[y][x]=2;var v=mm(depth-1,alpha,beta,false);board[y][x]=0;if(v>best)best=v;if(best>alpha)alpha=best;if(alpha>=beta)break;}return best;}else{var worst=Infinity;for(var i=0;i<cands.length;i++){var x=cands[i][0],y=cands[i][1];if(board[y][x]!==0)continue;board[y][x]=1;var v=mm(depth-1,alpha,beta,true);board[y][x]=0;if(v<worst)worst=v;if(worst<beta)beta=worst;if(alpha>=beta)break;}return worst;}}
+  function aiT(){if(gameOver)return;if(diff==='easy'){var m=sEv();if(!m)return;board[m[1]][m[0]]=2;lastMove={x:m[0],y:m[1]};drawBoard();if(chkWin(m[0],m[1])){gameOver=true;st.textContent='AI 赢了';toast('AI赢了!','error');return;}turn=1;st.textContent='你的回合 \u00B7 执白';}else if(diff==='hard'||diff==='master'){var cands=getCans(3);if(cands.length===0)return;cands=sC(cands,25);var bestScore=-Infinity,bx=-1,by=-1;for(var i=0;i<cands.length;i++){var x=cands[i][0],y=cands[i][1];if(board[y][x]!==0)continue;board[y][x]=2;var v=mm(MAX_D-1,-Infinity,Infinity,false);board[y][x]=0;if(v>bestScore){bestScore=v;bx=x;by=y;}if(bestScore>=50000)break;}if(bx<0)return;board[by][bx]=2;lastMove={x:bx,y:by};drawBoard();if(chkWin(bx,by)){gameOver=true;st.textContent='AI 赢了';toast('AI赢了!','error');return;}turn=1;st.textContent='你的回合 \u00B7 执白';}else{var bestScore=-Infinity,bx=-1,by=-1;for(var y=0;y<SZ;y++)for(var x=0;x<SZ;x++){if(board[y][x]!==0)continue;board[y][x]=2;var si=fEv()+ps[y][x]*0.1;board[y][x]=0;if(si>bestScore){bestScore=si;bx=x;by=y;}}if(bx<0)return;board[by][bx]=2;lastMove={x:bx,y:by};drawBoard();if(chkWin(bx,by)){gameOver=true;st.textContent='AI 赢了';toast('AI赢了!','error');return;}turn=1;st.textContent='你的回合 \u00B7 执白';}}
+  cvs.addEventListener('click',function(e){if(gameOver||turn!==1)return;var r=cvs.getBoundingClientRect();var sx=CW/r.width,sy=CW/r.height;var mx=(e.clientX-r.left)*sx,my=(e.clientY-r.top)*sy;var x=Math.round((mx-B)/CELL),y=Math.round((my-B)/CELL);if(x<0||x>=SZ||y<0||y>=SZ||board[y][x]!==0)return;board[y][x]=1;lastMove={x:x,y:y};drawBoard();if(chkWin(x,y)){gameOver=true;st.textContent='你赢了!';toast('你赢了!','success');return;}turn=2;st.textContent='AI 思考中...';setTimeout(aiT,diff==='master'?50:diff==='hard'?80:150);});
+  function initBoard(){board=Array.from({length:SZ},function(){return Array(SZ).fill(0);});turn=1;gameOver=false;lastMove=null;st.textContent='你的回合 \u00B7 执白';drawBoard();}
+  initBoard();
+}
+
+/* ============= Tetris ============= */
+function init_tetris(){document.getElementById('game-title').textContent='俄罗斯方块';var el=document.getElementById('game-container');var COLS=10,ROWS=20,CS=28;var cvs=document.createElement('canvas');cvs.width=COLS*CS;cvs.height=ROWS*CS;cvs.style.cssText='border-radius:8px;background:#0a0a0a;border:2px solid rgba(255,255,255,0.06)';el.innerHTML='';var wrap=document.createElement('div');wrap.style.cssText='display:flex;flex-direction:column;align-items:center;gap:8px';var se=document.createElement('div');se.style.cssText='font-weight:500';se.textContent='分数: 0';var btn=document.createElement('button');btn.className='btn btn-glass btn-sm';btn.textContent='新游戏';btn.onclick=init_tetris;wrap.appendChild(se);wrap.appendChild(btn);wrap.appendChild(cvs);el.appendChild(wrap);var bd=[],piece=null,score=0,loop,gO=false;var shapes=[[[1,1,1,1]],[[1,1],[1,1]],[[0,1,0],[1,1,1]],[[1,0,0],[1,1,1]],[[0,0,1],[1,1,1]],[[1,1,0],[0,1,1]],[[0,1,1],[1,1,0]]];var colors=['#00C6FF','#FFD700','#9B59B6','#1A7F37','#CF222E','#E67E22','#2980B9'];function nP(){var id=Math.floor(Math.random()*shapes.length);piece={shape:shapes[id],color:colors[id],x:Math.floor(COLS/2)-Math.floor(shapes[id][0].length/2),y:0};if(col()){gO=true;clearInterval(loop);toast('游戏结束! '+score+'分','info');}}function col(xO,yO,sh){sh=sh||piece.shape;for(var r=0;r<sh.length;r++)for(var c=0;c<sh[r].length;c++){if(!sh[r][c])continue;var nx=piece.x+c+(xO||0),ny=piece.y+r+(yO||0);if(nx<0||nx>=COLS||ny>=ROWS||(ny>=0&&bd[ny][nx]))return true;}return false;}function lock(){for(var r=0;r<piece.shape.length;r++)for(var c=0;c<piece.shape[r].length;c++){if(!piece.shape[r][c])continue;var y=piece.y+r;if(y<0){gO=true;return;}bd[y][piece.x+c]=piece.color;}cL();nP();}function cL(){var lines=0;for(var r=ROWS-1;r>=0;r--){if(bd[r].every(function(v){return v;})){bd.splice(r,1);bd.unshift(Array(COLS).fill(0));lines++;r++;}}if(lines){score+=lines*100;se.textContent='分数: '+score;}}function rot(){var s=piece.shape,ns=s[0].map(function(_,i){return s.map(function(r){return r[i];}).reverse();});if(!col(0,0,ns))piece.shape=ns;}function mv(dx,dy){if(!col(dx,dy)){piece.x+=dx;piece.y+=dy;}else if(dy===1){lock();}}function dr(){var ctx=cvs.getContext('2d');ctx.fillStyle='#0a0a0a';ctx.fillRect(0,0,cvs.width,cvs.height);for(var r=0;r<ROWS;r++)for(var c=0;c<COLS;c++){if(bd[r][c]){ctx.fillStyle=bd[r][c];ctx.fillRect(c*CS,r*CS,CS-1,CS-1);}}if(piece)for(var r=0;r<piece.shape.length;r++)for(var c=0;c<piece.shape[r].length;c++){if(!piece.shape[r][c])continue;ctx.fillStyle=piece.color;ctx.fillRect((piece.x+c)*CS,(piece.y+r)*CS,CS-1,CS-1);}ctx.strokeStyle='rgba(255,255,255,0.04)';for(var r=0;r<=ROWS;r++){ctx.beginPath();ctx.moveTo(0,r*CS);ctx.lineTo(COLS*CS,r*CS);ctx.stroke();}for(var c=0;c<=COLS;c++){ctx.beginPath();ctx.moveTo(c*CS,0);ctx.lineTo(c*CS,ROWS*CS);ctx.stroke();}}function start(){bd=Array.from({length:ROWS},function(){return Array(COLS).fill(0);});score=0;gO=false;se.textContent='分数: 0';nP();if(loop)clearInterval(loop);loop=setInterval(function(){if(!gO){mv(0,1);dr();}},400);dr();}document.addEventListener('keydown',function k(e){if(_gameActive!=='tetris'||gO)return;var act={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowDown:[0,1],ArrowUp:'rot',' ':function(){while(!col(0,1))mv(0,1);}}[e.key];if(!act)return;e.preventDefault();if(act==='rot')rot();else if(typeof act==='function')act();else mv(act[0],act[1]);dr();});start();}
+
+/* ============= Breakout ============= */
+function init_breakout(){document.getElementById('game-title').textContent='打砖块';var el=document.getElementById('game-container');var W=480,H=400;var cvs=document.createElement('canvas');cvs.width=W;cvs.height=H;cvs.style.cssText='border-radius:8px;background:#0a0a0a;border:2px solid rgba(255,255,255,0.06);max-width:100%';el.innerHTML='';var wrap=document.createElement('div');wrap.style.cssText='display:flex;flex-direction:column;align-items:center;gap:8px';var se=document.createElement('div');se.style.cssText='font-weight:500';se.textContent='分数: 0 命: 3';var btn=document.createElement('button');btn.className='btn btn-glass btn-sm';btn.textContent='新游戏';btn.onclick=init_breakout;wrap.appendChild(se);wrap.appendChild(btn);wrap.appendChild(cvs);el.appendChild(wrap);var ctx=cvs.getContext('2d');var pad={w:80,h:12,x:W/2-40,y:H-30},ball={x:W/2,y:H-50,r:6,dx:4,dy:-4};var bricks=[],score=0,lives=3,loop,gO=false;function gB(){bricks=[];for(var r=0;r<5;r++)for(var c=0;c<8;c++){bricks.push({x:c*60+2,y:r*22+40,w:56,h:18,alive:true,color:['#CF222E','#E67E22','#FFD700','#1A7F37','#0078D4'][r]});}}gB();function dr(){ctx.fillStyle='#0a0a0a';ctx.fillRect(0,0,W,H);bricks.forEach(function(b){if(b.alive){ctx.fillStyle=b.color;ctx.fillRect(b.x,b.y,b.w,b.h);}});ctx.fillStyle='#0078D4';ctx.fillRect(pad.x,pad.y,pad.w,pad.h);ctx.beginPath();ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();}function tk(){if(gO)return;ball.x+=ball.dx;ball.y+=ball.dy;if(ball.x-ball.r<0||ball.x+ball.r>W)ball.dx*=-1;if(ball.y-ball.r<0)ball.dy*=-1;if(ball.y+ball.r>H){lives--;se.textContent='分数: '+score+' 命: '+lives;if(lives<=0){gO=true;clearInterval(loop);toast('游戏结束! '+score+'分','info');return;}ball.x=W/2;ball.y=H-50;ball.dx=4;ball.dy=-4;}if(ball.y+ball.r>pad.y&&ball.x>pad.x&&ball.x<pad.x+pad.w&&ball.dy>0){ball.dy*=-1;ball.dx=(ball.x-pad.x-pad.w/2)*0.2;}bricks.forEach(function(b){if(b.alive&&ball.x>b.x&&ball.x<b.x+b.w&&ball.y>b.y&&ball.y<b.y+b.h){b.alive=false;ball.dy*=-1;score+=10;se.textContent='分数: '+score+' 命: '+lives;if(bricks.every(function(bb){return!bb.alive;})){gB();ball.dx*=1.05;ball.dy*=1.05;}}});dr();}document.addEventListener('mousemove',function(e){if(_gameActive!=='breakout')return;var rect=cvs.getBoundingClientRect();pad.x=e.clientX-rect.left-pad.w/2;if(pad.x<0)pad.x=0;if(pad.x>W-pad.w)pad.x=W-pad.w;});document.addEventListener('touchmove',function(e){if(_gameActive!=='breakout')return;var rect=cvs.getBoundingClientRect();pad.x=e.touches[0].clientX-rect.left-pad.w/2;if(pad.x<0)pad.x=0;if(pad.x>W-pad.w)pad.x=W-pad.w;});loop=setInterval(tk,1000/60);dr();}
+
+/* ============= Pong ============= */
+function init_pong(){
+  document.getElementById('game-title').textContent='乒乓球';
+  var el=document.getElementById('game-container'), W=520, H=380;
+  var cvs=document.createElement('canvas');cvs.width=W;cvs.height=H;
+  cvs.style.cssText='border-radius:10px;background:#0a0a0a;border:2px solid rgba(255,255,255,0.05);max-width:100%';
+  el.innerHTML='';
+  var wrap=document.createElement('div');wrap.style.cssText='display:flex;flex-direction:column;align-items:center;gap:10px';
+  var se=document.createElement('div');se.style.cssText='font-weight:600;font-size:1.1rem;letter-spacing:2px';
+  var btn=document.createElement('button');btn.className='btn btn-glass btn-sm';btn.textContent='新游戏';btn.onclick=init_pong;
+  wrap.appendChild(se);wrap.appendChild(btn);wrap.appendChild(cvs);el.appendChild(wrap);
+
+  var ctx=cvs.getContext('2d');
+  var pw=12, ph=80, p1={y:H/2-ph/2,score:0}, p2={y:H/2-ph/2,score:0};
+  var ball={x:W/2, y:H/2, r:7, dx:5, dy:(Math.random()-0.5)*5};
+  var trail=[], maxTrail=8, ballColor='#fff', p1Color='#0078D4', p2Color='#CF222E';
+  var aiTargetY=p2.y+ph/2, aiJitter=0, aiUpdateT=0;
+  var flashAlpha=0, scoreFlashSide='';
+  var keys={}, loop, paused=false;
+
+  function updateScore(){se.innerHTML='<span style="color:'+p1Color+'">玩家 '+p1.score+'</span>  <span style="color:rgba(255,255,255,0.2)">\u2502</span>  <span style="color:'+p2Color+'">'+p2.score+' AI</span>';}
+  updateScore();
+
+  function dr(){
+    ctx.fillStyle='#0a0a0a';ctx.fillRect(0,0,W,H);
+    /* net */
+    ctx.strokeStyle='rgba(255,255,255,0.06)';ctx.lineWidth=2;
+    for(var i=0;i<H;i+=22){ctx.beginPath();ctx.moveTo(W/2,i);ctx.lineTo(W/2,i+12);ctx.stroke();}
+    /* center circle */
+    ctx.strokeStyle='rgba(255,255,255,0.04)';ctx.lineWidth=1;ctx.beginPath();ctx.arc(W/2,H/2,60,0,Math.PI*2);ctx.stroke();
+    /* ball trail */
+    for(var i=trail.length-1;i>=0;i--){var t=trail[i],a=(i/trail.length)*0.5;ctx.fillStyle='rgba(255,255,255,'+a+')';ctx.beginPath();ctx.arc(t.x,t.y,ball.r*0.6,0,Math.PI*2);ctx.fill();}
+    /* ball */
+    ctx.beginPath();ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
+    var gb=ctx.createRadialGradient(ball.x-ball.r*0.3,ball.y-ball.r*0.3,ball.r*0.1,ball.x,ball.y,ball.r);
+    gb.addColorStop(0,'#fff');gb.addColorStop(0.6,'rgba(255,255,255,0.8)');gb.addColorStop(1,'rgba(255,255,255,0.2)');
+    ctx.fillStyle=gb;ctx.fill();
+    /* ball glow */
+    ctx.beginPath();ctx.arc(ball.x,ball.y,ball.r*1.6,0,Math.PI*2);
+    var gl=ctx.createRadialGradient(ball.x,ball.y,ball.r*0.5,ball.x,ball.y,ball.r*1.6);
+    gl.addColorStop(0,'rgba(255,255,255,0.15)');gl.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.fillStyle=gl;ctx.fill();
+    /* paddles */
+    var grp1=ctx.createLinearGradient(0,0,pw,0);grp1.addColorStop(0,p1Color);grp1.addColorStop(1,'rgba(0,120,212,0.3)');
+    ctx.fillStyle=grp1;roundRect(ctx,10,p1.y,pw,ph,6);
+    var grp2=ctx.createLinearGradient(W-pw,0,W,0);grp2.addColorStop(0,'rgba(207,34,46,0.3)');grp2.addColorStop(1,p2Color);
+    ctx.fillStyle=grp2;roundRect(ctx,W-10-pw,p2.y,pw,ph,6);
+    /* paddle glow */
+    ctx.fillStyle='rgba(0,120,212,0.08)';roundRect(ctx,6,p1.y-4,pw+8,ph+8,10);
+    ctx.fillStyle='rgba(207,34,46,0.08)';roundRect(ctx,W-14-pw,p2.y-4,pw+8,ph+8,10);
+    /* score flash */
+    if(flashAlpha>0){ctx.fillStyle='rgba(255,255,255,'+flashAlpha+')';ctx.fillRect(0,0,W,H);flashAlpha-=0.03;}
+  }
+
+  function roundRect(c,x,y,w,h,r){
+    c.beginPath();c.moveTo(x+r,y);c.lineTo(x+w-r,y);c.arcTo(x+w,y,x+w,y+r,r);
+    c.lineTo(x+w,y+h-r);c.arcTo(x+w,y+h,x+w-r,y+h,r);c.lineTo(x+r,y+h);
+    c.arcTo(x,y+h,x,y+h-r,r);c.lineTo(x,y+r);c.arcTo(x,y,x+r,y,r);c.closePath();c.fill();
+  }
+
+  function tk(){
+    if(paused)return;
+    /* trail */
+    trail.push({x:ball.x,y:ball.y});if(trail.length>maxTrail)trail.shift();
+    /* move ball */
+    ball.x+=ball.dx;ball.y+=ball.dy;
+    /* wall bounce */
+    if(ball.y-ball.r<0){ball.y=ball.r;ball.dy*=-1;}
+    if(ball.y+ball.r>H){ball.y=H-ball.r;ball.dy*=-1;}
+    /* player paddle collision */
+    if(ball.dx<0 && ball.x-ball.r<=10+pw && ball.x+ball.r>=10 && ball.y+ball.r>p1.y && ball.y-ball.r<p1.y+ph){
+      ball.x=10+pw+ball.r;
+      var hitPos=(ball.y-(p1.y+ph/2))/(ph/2);hitPos=Math.max(-1,Math.min(1,hitPos));
+      ball.dx=Math.abs(ball.dx);
+      ball.dy+=hitPos*3;
+      var speed=Math.sqrt(ball.dx*ball.dx+ball.dy*ball.dy);
+      var maxSp=10;if(speed>maxSp){ball.dx*=maxSp/speed;ball.dy*=maxSp/speed;}
+      var minSp=5;if(speed<minSp){ball.dx*=minSp/speed;ball.dy*=minSp/speed;}
+      trail=[];aiJitter=(Math.random()-0.5)*40;
+    }
+    /* AI paddle collision */
+    if(ball.dx>0 && ball.x+ball.r>=W-10-pw && ball.x-ball.r<=W-10 && ball.y+ball.r>p2.y && ball.y-ball.r<p2.y+ph){
+      ball.x=W-10-pw-ball.r;
+      var hitPos2=(ball.y-(p2.y+ph/2))/(ph/2);hitPos2=Math.max(-1,Math.min(1,hitPos2));
+      ball.dx=-Math.abs(ball.dx);
+      ball.dy+=hitPos2*3;
+      var speed2=Math.sqrt(ball.dx*ball.dx+ball.dy*ball.dy);
+      var maxSp2=9;if(speed2>maxSp2){ball.dx*=maxSp2/speed2;ball.dy*=maxSp2/speed2;}
+      var minSp2=5;if(speed2<minSp2){ball.dx*=minSp2/speed2;ball.dy*=minSp2/speed2;}
+      trail=[];aiJitter=(Math.random()-0.5)*40;
+    }
+    /* scoring */
+    if(ball.x<0){p2.score++;flashAlpha=0.4;scoreFlashSide='right';rst();}
+    if(ball.x>W){p1.score++;flashAlpha=0.4;scoreFlashSide='left';rst();}
+    /* AI movement */
+    aiUpdateT++;if(aiUpdateT>12){aiUpdateT=0;
+      if(ball.dx>0){var stepsToReach=(W-10-pw-ball.x)/Math.max(Math.abs(ball.dx),1);var predY=ball.y+ball.dy*stepsToReach;
+        var refl=0;while(predY<0||predY>H){if(predY<0)predY=-predY;else predY=2*H-predY;refl++;if(refl>5)break;}
+        aiTargetY=predY+aiJitter;}else{aiTargetY=H/2+aiJitter;}
+    }
+    var aiSpeed=0.06+Math.abs(ball.dx)*0.01;p2.y+=(aiTargetY-p2.y-ph/2)*aiSpeed;
+    if(p2.y<0)p2.y=0;if(p2.y>H-ph)p2.y=H-ph;
+    dr();
+  }
+
+  function rst(){
+    ball.x=W/2;ball.y=H/2;
+    ball.dx=(Math.random()>0.5?5:-5);ball.dy=(Math.random()-0.5)*5;
+    trail=[];aiJitter=(Math.random()-0.5)*40;
+    updateScore();paused=true;setTimeout(function(){paused=false;},800);
+  }
+
+  document.addEventListener('mousemove',function(e){if(_gameActive!=='pong')return;var rect=cvs.getBoundingClientRect();p1.y=e.clientY-rect.top-ph/2;if(p1.y<0)p1.y=0;if(p1.y>H-ph)p1.y=H-ph;});
+  document.addEventListener('keydown',function(e){if(_gameActive!=='pong')return;if(e.key==='w'||e.key==='W'||e.key==='ArrowUp'){keys[e.key]=true;e.preventDefault();}else if(e.key==='s'||e.key==='S'||e.key==='ArrowDown'){keys[e.key]=true;e.preventDefault();}});
+  document.addEventListener('keyup',function(e){if(_gameActive!=='pong')return;keys[e.key]=false;});
+  function handleKeys(){if(_gameActive!=='pong')return;var sp=6;if(keys.w||keys.W||keys.ArrowUp)p1.y-=sp;if(keys.s||keys.S||keys.ArrowDown)p1.y+=sp;if(p1.y<0)p1.y=0;if(p1.y>H-ph)p1.y=H-ph;requestAnimationFrame(function(){handleKeys();});}
+  handleKeys();
+  loop=setInterval(tk,1000/60);dr();
+}
