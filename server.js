@@ -1,15 +1,21 @@
 const express = require('express');
 const path = require('path');
-const { initDb } = require('./database/init');
+const fs = require('fs');
+const { initDb, MODE } = require('./database/init');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const isVercel = process.env.VERCEL === '1';
 
 if (isVercel) {
-  const fs = require('fs');
   fs.mkdirSync('/tmp/uploads', { recursive: true });
+} else {
+  const uploadsDir = path.join(__dirname, 'uploads');
+  if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 }
+
+console.log('[LUMINA] Mode:', isVercel ? 'Vercel (Supabase)' : (MODE === 'supabase' ? 'Local (Supabase)' : 'Local (JSON)'));
+console.log('[LUMINA] Port:', PORT);
 
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ limit: '5mb', extended: true }));
@@ -85,9 +91,20 @@ app.get('*', function(req, res){
 if (!isVercel) {
   _dbInit.then(function(){
     app.listen(PORT, function(){
-      console.log('Blog server running at http://localhost:' + PORT);
+      console.log('[LUMINA] Server running at http://localhost:' + PORT);
     });
+  }).catch(function(err){
+    console.error('[LUMINA] Failed to start server:', err.message);
+    process.exit(1);
   });
 }
+
+process.on('uncaughtException', function(err){
+  console.error('[LUMINA] Uncaught Exception:', err.message);
+  console.error(err.stack);
+});
+process.on('unhandledRejection', function(reason){
+  console.error('[LUMINA] Unhandled Rejection:', reason);
+});
 
 module.exports = app;
