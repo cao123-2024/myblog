@@ -28,13 +28,13 @@ if (isVercel) {
 /* Global error handler for multer / body-too-large */
 app.use(function(err, req, res, next) {
   if (err && err.code === 'LIMIT_FILE_SIZE') {
-    return res.status(413).json({ error: '文件太大，请压缩后再上传（最大 500MB）' });
+    return res.status(413).json({ error: '单个文件超过 10MB，图片已在上传前自动压缩，请选择较小的图片' });
   }
   if (err && err.type === 'entity.too.large') {
-    return res.status(413).json({ error: '请求体太大，Vercel 限制 4.5MB，请压缩图片或使用较小文件' });
+    return res.status(413).json({ error: '请求体太大，Vercel 限制 4.5MB，图片已在上传前自动压缩，请重试' });
   }
   if (err && err.status === 413) {
-    return res.status(413).json({ error: '文件太大（Vercel 限制 4.5MB），请压缩后再上传' });
+    return res.status(413).json({ error: '文件太大，图片已在上传前自动压缩，请重试' });
   }
   next(err);
 });

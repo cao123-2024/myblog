@@ -156,7 +156,7 @@ async function showCreateArticle() {
     + '<div class="form-group"><label>内容</label><textarea class="input input-glass textarea" id="art-content" placeholder="文章内容" rows="8"></textarea></div>'
     + (isAdmin ? '<div class="form-group"><label>摘要（可选）</label><input class="input input-glass" id="art-summary" placeholder="留空自动截取"></div>' : '')
     + '<div class="form-group"><label>关联下载（可选）</label><select class="input" id="art-dl" style="background:var(--bg-glass);color:var(--text-primary);border:1px solid var(--border-glass);border-radius:var(--radius-sm);padding:10px 14px;width:100%">'+dlOptions+'</select></div>'
-    + (isAdmin ? '<div class="form-group"><label>配图</label><input type="file" class="input" id="art-images" multiple accept="image/*"></div>' : '');
+    + '<div class="form-group"><label>配图（自动压缩，每张最大约1MB）</label><input type="file" class="input" id="art-images" multiple accept="image/*"></div>';
   showModal('发布文章', html, async function(){
     var title = document.getElementById('art-title').value.trim();
     var content = document.getElementById('art-content').value.trim();
@@ -169,10 +169,19 @@ async function showCreateArticle() {
     if(isAdmin){
       var summary = document.getElementById('art-summary');
       if(summary) fd.append('summary', summary.value.trim());
-      var files = document.getElementById('art-images').files;
-      for(var i=0;i<files.length;i++) fd.append('images',files[i]);
     }
-    await API.upload('/articles',fd);
+    var files = document.getElementById('art-images').files;
+    var total = files.length;
+    for(var i=0;i<files.length;i++){
+      var compressed = await compressImage(files[i], 1920, 1920, 0.75);
+      fd.append('images', compressed);
+      if (total > 1) {
+        var progressText = '压缩中 ' + (i + 1) + '/' + total;
+        document.getElementById('modal-confirm-btn').textContent = progressText;
+      }
+    }
+    if (total > 1) document.getElementById('modal-confirm-btn').textContent = '发布';
+    await API.upload('/articles', fd);
     toast('文章发布成功','success');
     navigate('home');
   },'发布');
@@ -195,7 +204,10 @@ async function editArticle(id) {
       const fd = new FormData();
       fd.append('title', title);
       fd.append('content', content);
-      for (const f of files) fd.append('images', f);
+      for (let i = 0; i < files.length; i++) {
+        const compressed = await compressImage(files[i], 1920, 1920, 0.75);
+        fd.append('images', compressed);
+      }
       await API.uploadPut('/articles/' + id, fd);
       toast('文章已更新', 'success');
       navigate('home');

@@ -270,3 +270,40 @@ function formatDate(d) {
   return dt.toLocaleDateString('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit'})+' '+
          dt.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
 }
+
+function compressImage(file, maxW, maxH, quality) {
+  maxW = maxW || 1920;
+  maxH = maxH || 1920;
+  quality = quality || 0.75;
+  return new Promise(function(resolve) {
+    if (!/^image\//.test(file.type)) return resolve(file);
+    if (file.size < 200 * 1024 && file.type === 'image/jpeg') return resolve(file);
+    var img = new Image();
+    var url = URL.createObjectURL(file);
+    img.onload = function() {
+      URL.revokeObjectURL(url);
+      var w = img.width, h = img.height;
+      if (w > maxW || h > maxH) {
+        var r = Math.min(maxW / w, maxH / h);
+        w = Math.round(w * r);
+        h = Math.round(h * r);
+      }
+      var c = document.createElement('canvas');
+      c.width = w;
+      c.height = h;
+      var ctx = c.getContext('2d');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, w, h);
+      c.toBlob(function(b) {
+        if (b && b.size > 0) {
+          resolve(new File([b], file.name.replace(/\.\w+$/i, '.jpg'), { type: 'image/jpeg' }));
+        } else {
+          resolve(file);
+        }
+      }, 'image/jpeg', quality);
+    };
+    img.onerror = function() { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
