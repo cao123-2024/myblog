@@ -14,9 +14,6 @@ if (isVercel) {
   if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-console.log('[LUMINA] Mode:', isVercel ? 'Vercel (Supabase)' : (MODE === 'supabase' ? 'Local (Supabase)' : 'Local (JSON)'));
-console.log('[LUMINA] Port:', PORT);
-
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ limit: '5mb', extended: true }));
 
@@ -90,11 +87,9 @@ app.get('*', function(req, res){
 
 if (!isVercel) {
   _dbInit.then(function(){
-    app.listen(PORT, function(){
-      console.log('[LUMINA] Server running at http://localhost:' + PORT);
-    });
+    app.listen(PORT, function(){});
   }).catch(function(err){
-    console.error('[LUMINA] Failed to start server:', err.message);
+    console.error('FATAL:', err.message);
     process.exit(1);
   });
 }

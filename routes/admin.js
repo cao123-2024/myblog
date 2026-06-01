@@ -188,16 +188,19 @@ router.post('/users/:id/grant-upload', auth, adminOnly, async (req, res) => {
   const userId = parseInt(req.params.id);
   const target = await db('users').getById(userId);
   if (!target) return res.status(404).json({ error: '用户不存在' });
-  await db('users').update(userId, { can_upload_images: true });
-  res.json({ message: '已开通上传权限' });
+  var updated = await db('users').update(userId, { can_upload_images: true });
+  res.json({ message: '已开通上传权限', user: { id: updated.id, can_upload_images: updated.can_upload_images } });
 });
 
 router.post('/users/:id/revoke-upload', auth, adminOnly, async (req, res) => {
   const userId = parseInt(req.params.id);
   const target = await db('users').getById(userId);
   if (!target) return res.status(404).json({ error: '用户不存在' });
-  await db('users').update(userId, { can_upload_images: false });
-  res.json({ message: '已取消上传权限' });
+  var updated = await db('users').update(userId, { can_upload_images: false });
+  if (!updated || updated.can_upload_images !== false) {
+    return res.status(500).json({ error: '取消失败，数据库未保存。请检查users表是否有can_upload_images列' });
+  }
+  res.json({ message: '已取消上传权限', user: { id: updated.id, can_upload_images: updated.can_upload_images } });
 });
 
 /* ===== BAN APPEAL ===== */
