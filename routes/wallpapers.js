@@ -2,7 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { db } = require('../database/db');
+const { db, MODE } = require('../database/db');
 const { auth, adminOnly } = require('../middleware/auth');
 
 const router = express.Router();
@@ -36,11 +36,20 @@ router.get('/', auth, async function(req, res) {
 
 router.post('/set', auth, async function(req, res) {
   var url = (req.body.url || '').trim();
-  await db('users').update(req.user.id, { wallpaper: url });
-  var updated = await db('users').getById(req.user.id);
-  var safe = Object.assign({}, updated);
-  delete safe.password;
-  res.json({ user: safe });
+  try {
+    var updated = await db('users').update(req.user.id, { wallpaper: url });
+    var safe = Object.assign({}, updated);
+    delete safe.password;
+    return res.json({ user: safe });
+  } catch (e) {
+    if (MODE !== 'json' && e.message && (e.message.includes('wallpaper') || e.message.includes('column') || e.message.includes('42703'))) {
+      return res.status(500).json({ error: '数据库缺少 wallpaper 列，请在 Supabase SQL Editor 中执行: ALTER TABLE users ADD COLUMN IF NOT EXISTS wallpaper TEXT; 然后重试。' });
+    }
+    if (MODE === 'json') {
+      return res.status(500).json({ error: '设置壁纸失败: ' + (e.message || '未知错误') });
+    }
+    return res.status(500).json({ error: '设置壁纸失败，请刷新后重试。如在 Vercel 部署，请在 Supabase SQL Editor 执行: ALTER TABLE users ADD COLUMN IF NOT EXISTS wallpaper TEXT;' });
+  }
 });
 
 router.post('/upload', auth, adminOnly, upload.single('file'), async function(req, res) {

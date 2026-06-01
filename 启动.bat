@@ -1,58 +1,35 @@
 @echo off
-title LUMINA - 液态玻璃博客
+set "PATH=C:\Windows\System32;C:\Program Files\nodejs;%PATH%"
+title LUMINA Blog
 cd /d "%~dp0"
 
 echo.
 echo   ============================================
-echo     LUMINA 博客系统 — 本地模式
+echo     LUMINA Blog - Local Mode
 echo   ============================================
 echo.
-echo   [1/3] 检查 Node.js...
-
-where node >nul 2>&1
-if %errorlevel% neq 0 (
-    echo   [错误] 未找到 Node.js，请先安装
-    echo   下载: https://nodejs.org
-    echo.
-    pause
-    exit /b 1
-)
-
-for /f "tokens=*" %%i in ('node -v') do set NODE_VER=%%i
-echo   Node.js 版本: %NODE_VER%
-
-echo.
-echo   [2/3] 检查必要目录...
+echo   [1/3] Prepare directories...
 
 if not exist "uploads" mkdir "uploads"
 if not exist "database\data" mkdir "database\data"
 if not exist "node_modules" (
-    echo   正在安装依赖包...
-    call npm install
-    if %errorlevel% neq 0 (
-        echo   [错误] 依赖安装失败
-        pause
-        exit /b 1
-    )
+    echo   Installing dependencies...
+    C:\Windows\System32\cmd.exe /c "cd /d "%~dp0" && "C:\Program Files\nodejs\npm.cmd" install"
 )
 
-echo   [3/3] 释放端口并启动...
 echo.
+echo   [2/3] Free port 3000...
 
-netstat -ano 2>nul | findstr ":3000.*LISTENING" >nul
-if %errorlevel% equ 0 (
-    echo   端口 3000 已被占用，正在释放...
-    for /f "tokens=5" %%a in ('netstat -ano 2^>nul ^| findstr ":3000.*LISTENING"') do (
-        taskkill /PID %%a /F >nul 2>&1
-    )
-    timeout /t 2 /nobreak >nul
+for /f "tokens=5" %%a in ('C:\Windows\System32\netstat.exe -ano 2^>nul ^| C:\Windows\System32\findstr.exe ":3000.*LISTENING"') do (
+    C:\Windows\System32\taskkill.exe /PID %%a /F >nul 2>&1
 )
 
+echo.
+echo   [3/3] Starting server...
 echo.
 echo   ============================================
-echo    服务器启动中...
-echo    地址: http://localhost:3000
-echo    按 Ctrl+C 可停止服务器
+echo     URL: http://localhost:3000
+echo     Press Ctrl+C to stop
 echo   ============================================
 echo.
 
@@ -62,6 +39,6 @@ start http://localhost:3000
 
 echo.
 echo   ============================================
-echo    服务器已停止
+echo     Server stopped.
 echo   ============================================
 pause

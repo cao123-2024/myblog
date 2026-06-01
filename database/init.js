@@ -119,50 +119,67 @@ async function execSql(sql) {
   }
 
   try {
-    const resp = await fetch(supabaseUrl + '/rest/v1/', {
+    const resp = await fetch(supabaseUrl + '/rest/v1/rpc/exec_sql', {
       method: 'POST',
       headers: {
         'apikey': supabaseKey,
         'Authorization': 'Bearer ' + supabaseKey,
-        'Content-Type': 'application/sql',
+        'Content-Type': 'application/json',
         'Prefer': 'return=minimal'
       },
-      body: sql
+      body: JSON.stringify({ query: sql })
     });
     if (resp.ok || resp.status === 204) return true;
     const txt = await resp.text();
-    console.error('[DB] raw SQL failed:', resp.status, txt.slice(0, 200));
+    console.error('[DB] rpc exec_sql failed:', resp.status, txt.slice(0, 200));
     return false;
   } catch(e) {
-    console.error('[DB] raw SQL exception:', e.message);
+    console.error('[DB] rpc exec_sql exception:', e.message);
     return false;
   }
 }
 
 async function createWallpapersTables() {
   var ok = true;
-  if (!(await execSql('CREATE TABLE IF NOT EXISTS wallpapers (id SERIAL PRIMARY KEY, name TEXT, url TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW())'))) ok = false;
-  if (!(await execSql('CREATE TABLE IF NOT EXISTS upload_applies (id SERIAL PRIMARY KEY, user_id INTEGER, status TEXT DEFAULT \'pending\', created_at TIMESTAMPTZ DEFAULT NOW())'))) ok = false;
-  if (!(await execSql('CREATE TABLE IF NOT EXISTS game_queue (id SERIAL PRIMARY KEY, user_id INTEGER, status TEXT DEFAULT \'waiting\', matched_with INTEGER, room_id INTEGER, created_at TIMESTAMPTZ DEFAULT NOW())'))) ok = false;
-  if (!(await execSql('CREATE TABLE IF NOT EXISTS game_rooms (id SERIAL PRIMARY KEY, player1 INTEGER, player2 INTEGER, game_type TEXT DEFAULT \'gomoku\', turn INTEGER DEFAULT 1, board TEXT, status TEXT DEFAULT \'active\', winner INTEGER, p1_heartbeat TIMESTAMPTZ, p2_heartbeat TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW())'))) ok = false;
-  if (!(await execSql('CREATE TABLE IF NOT EXISTS game_invites (id SERIAL PRIMARY KEY, from_user INTEGER, to_user INTEGER, status TEXT DEFAULT \'pending\', created_at TIMESTAMPTZ DEFAULT NOW())'))) ok = false;
-  if (!(await execSql("CREATE TABLE IF NOT EXISTS ban_appeals (id SERIAL PRIMARY KEY, user_id INTEGER, reason TEXT, status TEXT DEFAULT 'pending', admin_msg TEXT, reduced_minutes INTEGER DEFAULT 0, created_at TIMESTAMPTZ DEFAULT NOW())"))) ok = false;
-  if (!(await execSql("ALTER TABLE users ADD COLUMN IF NOT EXISTS wallpaper TEXT"))) ok = false;
+  var missingTables = [];
+  if (!(await execSql('CREATE TABLE IF NOT EXISTS wallpapers (id SERIAL PRIMARY KEY, name TEXT, url TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW())'))) { ok = false; missingTables.push('wallpapers'); }
+  if (!(await execSql('CREATE TABLE IF NOT EXISTS upload_applies (id SERIAL PRIMARY KEY, user_id INTEGER, status TEXT DEFAULT \'pending\', created_at TIMESTAMPTZ DEFAULT NOW())'))) { ok = false; missingTables.push('upload_applies'); }
+  if (!(await execSql('CREATE TABLE IF NOT EXISTS game_queue (id SERIAL PRIMARY KEY, user_id INTEGER, status TEXT DEFAULT \'waiting\', matched_with INTEGER, room_id INTEGER, created_at TIMESTAMPTZ DEFAULT NOW())'))) { ok = false; missingTables.push('game_queue'); }
+  if (!(await execSql('CREATE TABLE IF NOT EXISTS game_rooms (id SERIAL PRIMARY KEY, player1 INTEGER, player2 INTEGER, game_type TEXT DEFAULT \'gomoku\', turn INTEGER DEFAULT 1, board TEXT, status TEXT DEFAULT \'active\', winner INTEGER, p1_heartbeat TIMESTAMPTZ, p2_heartbeat TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW())'))) { ok = false; missingTables.push('game_rooms'); }
+  if (!(await execSql('CREATE TABLE IF NOT EXISTS game_invites (id SERIAL PRIMARY KEY, from_user INTEGER, to_user INTEGER, status TEXT DEFAULT \'pending\', created_at TIMESTAMPTZ DEFAULT NOW())'))) { ok = false; missingTables.push('game_invites'); }
+  if (!(await execSql("CREATE TABLE IF NOT EXISTS ban_appeals (id SERIAL PRIMARY KEY, user_id INTEGER, reason TEXT, status TEXT DEFAULT 'pending', admin_msg TEXT, reduced_minutes INTEGER DEFAULT 0, created_at TIMESTAMPTZ DEFAULT NOW())"))) { ok = false; missingTables.push('ban_appeals'); }
+
+  var colOk = await execSql("ALTER TABLE users ADD COLUMN IF NOT EXISTS wallpaper TEXT");
+  if (!colOk) {
+    module.exports._wallpaperColMissing = true;
+    console.error('[DB] WARNING: 无法给 users 表添加 wallpaper 列，壁纸设置功能将不可用');
+  }
+
+  var uploadColOk = await execSql("ALTER TABLE users ADD COLUMN IF NOT EXISTS can_upload_images BOOLEAN DEFAULT false");
+  if (!uploadColOk) {
+    console.error('[DB] WARNING: 无法给 users 表添加 can_upload_images 列，上传权限功能将不可用');
+  }
 
   if (ok) {
     console.log('[DB] all extra tables ready');
-    return true;
+  } else {
+    console.error('========================================');
+    console.error('[DB] 以下表创建失败，请在 Supabase SQL Editor 中执行:');
+    for (var i = 0; i < missingTables.length; i++) {
+      console.error('[DB]   - ' + missingTables[i]);
+    }
+    console.error('[DB] 如 wallpaper/can_upload_images 列也未添加，请执行:');
+    console.error('[DB]   ALTER TABLE users ADD COLUMN IF NOT EXISTS wallpaper TEXT;');
+    console.error('[DB]   ALTER TABLE users ADD COLUMN IF NOT EXISTS can_upload_images BOOLEAN DEFAULT false;');
+    console.error('========================================');
   }
 
-  console.error('========================================');
-  console.error('[DB] 请在 Supabase SQL Editor 中执行以下SQL（表未建会导致游戏/权限功能不可用）:');
-  console.error("CREATE TABLE IF NOT EXISTS upload_applies (id SERIAL PRIMARY KEY, user_id INTEGER, status TEXT DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT NOW());");
-  console.error("CREATE TABLE IF NOT EXISTS game_queue (id SERIAL PRIMARY KEY, user_id INTEGER, status TEXT DEFAULT 'waiting', matched_with INTEGER, room_id INTEGER, created_at TIMESTAMPTZ DEFAULT NOW());");
-  console.error("CREATE TABLE IF NOT EXISTS game_rooms (id SERIAL PRIMARY KEY, player1 INTEGER, player2 INTEGER, game_type TEXT DEFAULT 'gomoku', turn INTEGER DEFAULT 1, board TEXT, status TEXT DEFAULT 'active', winner INTEGER, p1_heartbeat TIMESTAMPTZ, p2_heartbeat TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW());");
-  console.error("CREATE TABLE IF NOT EXISTS game_invites (id SERIAL PRIMARY KEY, from_user INTEGER, to_user INTEGER, status TEXT DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT NOW());");
-  console.error("CREATE TABLE IF NOT EXISTS ban_appeals (id SERIAL PRIMARY KEY, user_id INTEGER, reason TEXT, status TEXT DEFAULT 'pending', admin_msg TEXT, reduced_minutes INTEGER DEFAULT 0, created_at TIMESTAMPTZ DEFAULT NOW());");
-  console.error('========================================');
-  return false;
+  if (colOk) {
+    module.exports._wallpaperColReady = true;
+    console.log('[DB] users.wallpaper column ready');
+  }
+
+  return ok;
 }
 
 async function enableRlsOnAllTables() {
