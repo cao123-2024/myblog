@@ -7,7 +7,8 @@ const ROOT = path.join(__dirname, '..');
 
 function run(cmd, silent) {
   try {
-    return execSync(cmd, { cwd: ROOT, encoding: 'utf8', stdio: silent ? 'pipe' : 'inherit' }).trim();
+    const out = execSync(cmd, { cwd: ROOT, encoding: 'utf8', stdio: silent ? 'pipe' : 'inherit' });
+    return (out || '').trim();
   } catch (e) {
     if (!silent) console.error(e.message);
     return '';
