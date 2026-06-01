@@ -198,10 +198,10 @@ function showDualInviteOptions() {
     + '<div class="text-sm font-medium mb-2">随机匹配</div>'
     + '<button class="btn btn-primary btn-sm w-full" onclick="startRandomMatch()">寻找在线对手</button></div></div>';
   showModal('选择对手', h, null, null);
-  loadFriendList();
+  loadGameFriendList();
 }
 
-async function loadFriendList() {
+async function loadGameFriendList() {
   try {
     var d = await API.get('/game/online-friends');
     var friends = d.friends || [];
