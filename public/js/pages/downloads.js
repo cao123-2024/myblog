@@ -6,7 +6,7 @@ function render_downloads() {
   hdr.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:20px';
   hdr.innerHTML = ''
     + '<h2 style="font-size:1.4rem;font-weight:700">下载中心</h2>'
-    + (Store.isAdmin() ? '<button class="btn btn-primary btn-sm" onclick="showUploadModal()">+ 上传文件</button>' : '');
+    + (Store.isAdmin() ? '<button class="btn btn-primary btn-sm" onclick="showUploadModal()">+ 新建下载</button>' : '');
   wrap.appendChild(hdr);
 
   var list = document.createElement('div');
@@ -26,25 +26,34 @@ async function loadDownloads() {
     if(!el) return;
 
     if(items.length === 0) {
-      el.innerHTML = '<div class="card-glass text-center p-8 text-secondary">暂无下载文件</div>';
+      el.innerHTML = '<div class="card-glass text-center p-8 text-secondary">暂无下载内容</div>';
       return;
     }
 
     var html = '';
     items.forEach(function(f, i) {
-      var sizeStr = f.size < 1024 ? f.size+'B' : f.size < 1048576 ? (f.size/1024).toFixed(1)+'KB' : (f.size/1048576).toFixed(1)+'MB';
-      html += '<div class="card-glass" style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;margin-bottom:8px" id="dl-item-'+f.id+'">'
+      var isLink = f.type === 'link';
+      var iconSvg = isLink
+        ? '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="1.5"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>'
+        : '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>';
+      var sizeStr = '';
+      if (!isLink) {
+        sizeStr = f.size < 1024 ? f.size+'B' : f.size < 1048576 ? (f.size/1024).toFixed(1)+'KB' : (f.size/1048576).toFixed(1)+'MB';
+      }
+      var tagHtml = isLink ? '<span class="text-xs" style="background:var(--purple);color:#fff;border-radius:4px;padding:1px 6px;margin-left:6px;font-size:0.65rem">链接</span>' : '';
+
+      html += '<div class="card-glass" style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;margin-bottom:8px">'
         + '<div class="flex items-center gap-3" style="flex:1;min-width:0">'
         + '<div style="width:44px;height:44px;border-radius:var(--radius-md);background:var(--bg-glass);display:flex;align-items:center;justify-content:center;flex-shrink:0">'
-        + '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>'
+        + iconSvg
         + '</div>'
         + '<div style="flex:1;min-width:0">'
-        + '<div class="font-medium" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escapeHtml(f.title||f.originalName)+'</div>'
-        + '<div class="text-xs text-secondary">'+sizeStr+' · '+f.download_count+'次下载 · '+formatDate(f.created_at)+'</div>'
+        + '<div class="font-medium" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escapeHtml(f.title||f.originalName)+tagHtml+'</div>'
+        + '<div class="text-xs text-secondary">'+(isLink ? '网盘链接 · ' : sizeStr+' · ')+f.download_count+'次点击 · '+formatDate(f.created_at)+'</div>'
         + '</div>'
         + '</div>'
         + '<div class="flex gap-2" style="flex-shrink:0">'
-        + '<button class="btn btn-primary btn-sm" onclick="downloadFile('+f.id+')">下载</button>'
+        + '<button class="btn btn-primary btn-sm" onclick="downloadFile('+f.id+')">'+ (isLink ? '前往' : '下载') +'</button>'
         + (Store.isAdmin() ? '<button class="btn btn-glass btn-sm" onclick="deleteDownload('+f.id+')">删除</button>' : '')
         + '</div>'
         + '</div>';
@@ -54,7 +63,8 @@ async function loadDownloads() {
     });
     el.innerHTML = html;
   } catch(e) {
-    document.getElementById('downloads-list').innerHTML = '<div class="text-center p-6" style="color:#CF222E">加载失败: '+e.message+'</div>';
+    var dl = document.getElementById('downloads-list');
+    if (dl) dl.innerHTML = '<div class="text-center p-6" style="color:#CF222E">加载失败: '+e.message+'</div>';
   }
 }
 
@@ -62,7 +72,7 @@ function downloadFile(id) {
   window.open('/api/downloads/'+id+'/dl', '_blank');
 }
 async function deleteDownload(id) {
-  showConfirm('删除下载','确定删除此文件吗？', async function(){
+  showConfirm('删除下载','确定删除此下载项吗？', async function(){
     await API.delete('/downloads/'+id);
     toast('已删除','success');
     loadDownloads();
@@ -71,14 +81,37 @@ async function deleteDownload(id) {
 
 function showUploadModal() {
   var html = ''
-    + '<div class="login-form-group"><label>文件</label><input type="file" class="input" id="dl-file" accept="image/*,.zip,.rar,.7z,.pdf,.doc,.docx,.txt,.mp3,.mp4"></div>'
-    + '<div class="login-form-group" id="dl-compress-hint" style="display:none"><span class="text-xs" style="color:#eab308">图片较大时将自动压缩（Vercel 限制 4.5MB）</span></div>'
-    + '<div class="login-form-group"><label>显示名称（可选）</label><input class="input input-glass" id="dl-title" placeholder="留空使用文件名"></div>'
+    + '<div style="display:flex;gap:0;margin-bottom:16px;background:var(--bg-glass);border-radius:10px;padding:4px;width:fit-content">'
+    + '<button class="btn btn-sm" id="dl-tab-file" style="border-radius:8px;background:var(--blue);color:#fff;font-weight:600" onclick="switchDlTab(\'file\')">上传文件</button>'
+    + '<button class="btn btn-sm" id="dl-tab-link" style="border-radius:8px;background:transparent;color:var(--text-secondary);font-weight:600" onclick="switchDlTab(\'link\')">网盘链接</button>'
+    + '</div>'
+    + '<div id="dl-file-panel">'
+    + '<div class="login-form-group"><label>选择文件</label><input type="file" class="input" id="dl-file" accept="image/*,.zip,.rar,.7z,.pdf,.doc,.docx,.txt,.mp3,.mp4"></div>'
+    + '<div class="login-form-group" id="dl-compress-hint" style="display:none"><span class="text-xs" style="color:#eab308">图片较大时将自动压缩</span></div>'
+    + '</div>'
+    + '<div id="dl-link-panel" style="display:none">'
+    + '<div class="login-form-group"><label>网盘地址</label><input class="input input-glass" id="dl-url" placeholder="https://pan.baidu.com/s/..."></div>'
+    + '</div>'
+    + '<div class="login-form-group"><label>显示名称（可选）</label><input class="input input-glass" id="dl-title" placeholder="留空使用文件名或链接"></div>'
     + '<div class="login-form-group"><label>简介（可选）</label><input class="input input-glass" id="dl-desc" placeholder="简短介绍"></div>';
-  showModal('上传文件', html, async function(){
+  showModal('新建下载', html, async function(){
+    if (window._dlMode === 'link') {
+      var url = document.getElementById('dl-url').value.trim();
+      if (!url) { toast('请输入网盘链接', 'error'); return; }
+      var fd = new FormData();
+      fd.append('type', 'link');
+      fd.append('url', url);
+      fd.append('title', document.getElementById('dl-title').value.trim());
+      fd.append('description', document.getElementById('dl-desc').value.trim());
+      await API.upload('/downloads', fd);
+      toast('链接已添加','success');
+      loadDownloads();
+      return;
+    }
+
     var fileInput = document.getElementById('dl-file');
     var file = fileInput.files[0];
-    if(!file) throw new Error('请选择文件');
+    if(!file) { toast('请选择文件', 'error'); return; }
 
     var uploadFile = file;
     var originalSize = (file.size / 1024 / 1024).toFixed(1);
@@ -97,6 +130,7 @@ function showUploadModal() {
 
     showUploadingStatus('正在上传...');
     var fd = new FormData();
+    fd.append('type', 'file');
     fd.append('file', uploadFile, uploadFile.name || file.name);
     fd.append('title', document.getElementById('dl-title').value.trim());
     fd.append('description', document.getElementById('dl-desc').value.trim());
@@ -107,22 +141,26 @@ function showUploadModal() {
       loadDownloads();
     } catch(e) {
       if (e.message && (e.message.includes('413') || e.message.includes('太大') || e.message.includes('too large') || e.message.includes('Payload'))) {
-        throw new Error('文件太大 (' + (uploadFile.size/1024/1024).toFixed(1) + 'MB)，Vercel 限制 4.5MB。请尝试缩小图片后再上传');
+        toast('文件太大，Vercel 限制 4.5MB', 'error');
       }
-      throw e;
     }
-  }, '上传');
+  }, window._dlMode === 'link' ? '添加' : '上传');
 
-  var fileInput = document.getElementById('dl-file');
-  fileInput.addEventListener('change', function() {
-    var f = fileInput.files[0];
+  window._dlMode = 'file';
+  var fi = document.getElementById('dl-file');
+  if (fi) fi.addEventListener('change', function() {
+    var f = fi.files[0];
     var hint = document.getElementById('dl-compress-hint');
-    if (f && /^image\//.test(f.type) && f.size > 500 * 1024) {
-      hint.style.display = 'block';
-    } else {
-      hint.style.display = 'none';
-    }
+    if (hint) hint.style.display = (f && /^image\//.test(f.type) && f.size > 500 * 1024) ? 'block' : 'none';
   });
+}
+
+function switchDlTab(mode) {
+  window._dlMode = mode;
+  document.getElementById('dl-tab-file').style.cssText = 'border-radius:8px;background:'+(mode==='file'?'var(--blue)':'transparent')+';color:'+(mode==='file'?'#fff':'var(--text-secondary)')+';font-weight:600';
+  document.getElementById('dl-tab-link').style.cssText = 'border-radius:8px;background:'+(mode==='link'?'var(--blue)':'transparent')+';color:'+(mode==='link'?'#fff':'var(--text-secondary)')+';font-weight:600';
+  document.getElementById('dl-file-panel').style.display = mode === 'file' ? 'block' : 'none';
+  document.getElementById('dl-link-panel').style.display = mode === 'link' ? 'block' : 'none';
 }
 
 function showUploadingStatus(msg) {

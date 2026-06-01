@@ -34,11 +34,32 @@ router.get('/:id', async (req, res) => {
 });
 
 router.post('/', auth, adminOnly, upload.single('file'), async (req, res) => {
+  const { title, description, type, url } = req.body;
+
+  if (type === 'link') {
+    if (!url || !url.trim()) return res.status(400).json({ error: '请输入链接地址' });
+    var item = await db('downloads').insert({
+      title: title || url.trim().slice(0, 40),
+      description: description || '',
+      type: 'link',
+      url: url.trim(),
+      filename: '',
+      originalName: '',
+      size: 0,
+      mimetype: '',
+      path: '',
+      download_count: 0,
+      created_at: new Date().toISOString()
+    });
+    return res.json({ item });
+  }
+
   if (!req.file) return res.status(400).json({ error: '请选择文件' });
-  const { title, description } = req.body;
-  const item = await db('downloads').insert({
+  var item = await db('downloads').insert({
     title: title || req.file.originalname,
     description: description || '',
+    type: 'file',
+    url: '',
     filename: req.file.filename,
     originalName: req.file.originalname,
     size: req.file.size,
@@ -51,19 +72,26 @@ router.post('/', auth, adminOnly, upload.single('file'), async (req, res) => {
 });
 
 router.get('/:id/dl', async (req, res) => {
-  const item = await db('downloads').getById(parseInt(req.params.id));
+  var item = await db('downloads').getById(parseInt(req.params.id));
   if (!item) return res.status(404).json({ error: '文件不存在' });
   await db('downloads').update(item.id, { download_count: (item.download_count || 0) + 1 });
-  const filePath = path.join(UPLOAD_DIR, item.filename);
+
+  if (item.type === 'link' && item.url) {
+    return res.redirect(item.url);
+  }
+
+  var filePath = path.join(UPLOAD_DIR, item.filename);
   if (!fs.existsSync(filePath)) return res.status(404).json({ error: '文件已被删除' });
   res.download(filePath, item.originalName);
 });
 
 router.delete('/:id', auth, adminOnly, async (req, res) => {
-  const item = await db('downloads').getById(parseInt(req.params.id));
+  var item = await db('downloads').getById(parseInt(req.params.id));
   if (!item) return res.status(404).json({ error: '文件不存在' });
-  const filePath = path.join(UPLOAD_DIR, item.filename);
-  if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  if (item.type !== 'link') {
+    var filePath = path.join(UPLOAD_DIR, item.filename);
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  }
   await db('downloads').delete(item.id);
   res.json({ message: '已删除' });
 });
