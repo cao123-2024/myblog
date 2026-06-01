@@ -96,9 +96,8 @@ async function editProfileModal() {
 
   var presetHtml = '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px">';
   PRESET_AVATARS.forEach(function(p){
-    var uri = 'data:image/svg+xml;base64,' + p.svg;
-    var sel = curAv === uri ? 'border:3px solid var(--blue)!important' : '';
-    presetHtml += '<div class="preset-av-item" data-av="'+p.id+'" title="'+p.name+'" style="width:44px;height:44px;border-radius:50%;background-size:cover;cursor:pointer;border:2px solid transparent;transition:all 0.2s;'+sel+';background-image:url(\''+uri+'\')" onclick="var qs=document.querySelectorAll(\'.preset-av-item\');for(var i=0;i<qs.length;i++)qs[i].style.border=\'2px solid transparent\';this.style.border=\'3px solid var(--blue)\';window._selectedPresetAv=\''+p.id+'\';var up=document.getElementById(\'edit-avatar\');if(up)up.value=\'\'"></div>';
+    var sel = (curAv.indexOf(p.id) > -1 || curAv.indexOf(p.name) > -1) ? 'border:3px solid var(--blue)!important' : '';
+    presetHtml += '<div class="preset-av-item" data-av="'+p.id+'" title="'+p.name+'" style="width:44px;height:44px;border-radius:50%;overflow:hidden;cursor:pointer;border:2px solid transparent;transition:all 0.2s;'+sel+'" onclick="var qs=document.querySelectorAll(\'.preset-av-item\');for(var i=0;i<qs.length;i++)qs[i].style.border=\'2px solid transparent\';this.style.border=\'3px solid var(--blue)\';window._selectedPresetAv=\''+p.id+'\';var up=document.getElementById(\'edit-avatar\');if(up)up.value=\'\'">'+p.svg+'</div>';
   });
   presetHtml += '</div>';
 
@@ -140,7 +139,7 @@ async function editProfileModal() {
     var selAv = window._selectedPresetAv;
     if (selAv) {
       var preset = PRESET_AVATARS.find(function(p){ return p.id === selAv; });
-      if (preset) fd.append('avatar_data', 'data:image/svg+xml;base64,' + preset.svg);
+      if (preset) fd.append('avatar_data', 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(preset.svg))));
     } else if (canUpload) {
       var avEl = document.getElementById('edit-avatar');
       if (avEl && avEl.files && avEl.files[0]) fd.append('avatar', await compressProfileImage(avEl.files[0]));
