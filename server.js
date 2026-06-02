@@ -14,8 +14,8 @@ if (isVercel) {
   if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-app.use(express.json({ limit: '5mb' }));
-app.use(express.urlencoded({ limit: '5mb', extended: true }));
+app.use(express.json({ limit: isVercel ? '5mb' : '500mb' }));
+app.use(express.urlencoded({ limit: isVercel ? '5mb' : '500mb', extended: true }));
 
 /* Serve static files IMMEDIATELY — no DB needed */
 app.use(express.static(path.join(__dirname, 'public')));

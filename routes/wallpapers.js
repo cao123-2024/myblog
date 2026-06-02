@@ -21,7 +21,7 @@ const upload = multer({
       cb(null, Date.now() + '-' + file.originalname.replace(/[()\s]/g, '-'));
     }
   }),
-  limits: { fileSize: 50 * 1024 * 1024 }
+  limits: { fileSize: isVercel ? 50 * 1024 * 1024 : 200 * 1024 * 1024 }
 });
 
 router.get('/', auth, async function(req, res) {

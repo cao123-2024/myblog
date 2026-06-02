@@ -272,6 +272,7 @@ function formatDate(d) {
 }
 
 function compressImage(file, maxW, maxH, quality) {
+  if (window._isLocal) return Promise.resolve(file);
   maxW = maxW || 1920;
   maxH = maxH || 1920;
   quality = quality || 0.75;

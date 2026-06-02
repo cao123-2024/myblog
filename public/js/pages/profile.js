@@ -68,6 +68,7 @@ function renderProfileArticles(articles) {
 }
 
 function compressProfileImage(file) {
+  if (window._isLocal) return Promise.resolve(file);
   return new Promise(function(resolve) {
     if (!/^image\//.test(file.type) || file.size < 300*1024) return resolve(file);
     var img = new Image();

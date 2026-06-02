@@ -18,7 +18,7 @@ const storage = multer.diskStorage({
     cb(null, prefix + '-' + req.user.id + '-' + Date.now() + ext);
   }
 });
-const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
+const upload = multer({ storage, limits: { fileSize: isVercel ? 5 * 1024 * 1024 : 50 * 1024 * 1024 } });
 
 router.get('/:id', auth, async (req, res) => {
   const user = await db('users').getById(parseInt(req.params.id));

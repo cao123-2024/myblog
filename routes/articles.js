@@ -15,7 +15,7 @@ const storage = multer.diskStorage({
     cb(null, Date.now() + '-' + Math.round(Math.random() * 1e9) + ext);
   }
 });
-const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
+const upload = multer({ storage, limits: process.env.VERCEL === '1' ? { fileSize: 10 * 1024 * 1024 } : {} });
 
 router.get('/', optionalAuth, async (req, res) => {
   const page = parseInt(req.query.page) || 1;
