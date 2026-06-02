@@ -45,14 +45,38 @@ async function initAdminLogin() {
     var username = document.getElementById('admin-username').value.trim();
     var password = document.getElementById('admin-password').value.trim();
     if(!username||!password) return toast('请输入用户名和密码','error');
-    try{ await API.post('/login',{username,password}); await API.post('/admin/request-verify'); document.getElementById('admin-verify-group').classList.remove('hidden'); toast('验证码已显示在终端','info'); }
+    try{
+      var loginData = await API.post('/login',{username,password});
+      API.setToken(loginData.token);
+      Store.token = loginData.token;
+      localStorage.setItem('token', loginData.token);
+      await API.post('/admin/request-verify');
+      document.getElementById('admin-verify-group').classList.remove('hidden');
+      toast('验证码已显示在终端','info');
+      setTimeout(function(){
+        var vc = document.getElementById('admin-verify-code');
+        if (vc) vc.focus();
+      }, 200);
+    }
     catch(e){ toast(e.message,'error'); }
   });
   document.getElementById('admin-verify-btn').addEventListener('click', async function(){
-    var code = document.getElementById('admin-verify-code').value.trim();
+    var codeEl = document.getElementById('admin-verify-code');
+    if (!codeEl) return toast('系统错误，请刷新页面','error');
+    var code = codeEl.value.trim();
     if(!code) return toast('请输入验证码','error');
-    try{ var data = await API.post('/admin/verify-and-login',{code}); Store.loginAdmin(data.adminToken); toast('管理员验证通过','success'); navigate('admin'); }
-    catch(e){ toast(e.message,'error'); }
+    var btn = document.getElementById('admin-verify-btn');
+    if (btn) btn.disabled = true;
+    try{
+      var data = await API.post('/admin/verify-and-login',{code:code});
+      Store.loginAdmin(data.adminToken);
+      toast('管理员验证通过','success');
+      navigate('admin');
+    }
+    catch(e){
+      if (btn) btn.disabled = false;
+      toast(e.message,'error');
+    }
   });
 }
 
