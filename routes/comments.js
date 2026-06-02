@@ -46,7 +46,7 @@ router.post('/article/:articleId', auth, async (req, res) => {
 router.delete('/:id', auth, async (req, res) => {
   const comment = await db('comments').getById(parseInt(req.params.id));
   if (!comment) return res.status(404).json({ error: '评论不存在' });
-  if (comment.user_id !== req.user.id && req.user.role !== 'admin') {
+  if (comment.user_id !== req.user.id && req.user.role !== 'admin' && req.user.role !== 'semi_admin') {
     return res.status(403).json({ error: '无权删除' });
   }
   await db('comments').delete(comment.id);

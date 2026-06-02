@@ -47,7 +47,7 @@ async function loadProfile(wrap, targetId, isMe) {
       + '</div>'
       + '</div></div></div>'
       + '<h3 class="mb-3" style="font-size:1.2rem;font-weight:600">'+(isMe?'我的':'TA的')+'文章</h3>'
-      + '<div id="profile-articles">'+renderProfileArticles(data.articles)+'</div>';
+      + '<div id="profile-articles">'+renderProfileArticles(data.articles || [])+'</div>';
     if (isMe) window._profileData = data;
   } catch (e) {
     wrap.innerHTML = '<div class="text-center p-6 text-secondary">加载失败: '+e.message+'</div>';
@@ -257,10 +257,12 @@ async function sendFriendRequest(userId) {
   } catch (e) { toast(e.message, 'error'); }
 }
 
-async function removeFriend(userId) {
-  showConfirm('删除好友', '确定要删除这个好友吗？', async function() {
+async function removeFriend(userId, name) {
+  if (!name) name = '该用户';
+  showConfirm('删除好友', '确定要删除好友「' + name + '」吗？', async function() {
     await API.delete('/friends/' + userId);
     toast('已删除', 'success');
+    if (typeof loadFriendList === 'function') try { loadFriendList(); } catch(_) {}
     navigate('profile', userId);
   });
 }

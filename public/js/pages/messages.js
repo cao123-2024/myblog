@@ -90,7 +90,7 @@ async function loadChatData() {
     });
 
     var pendingEl = document.getElementById('chat-pending');
-    var pending = friendData.pending;
+    var pending = friendData.pending || [];
     if(!pendingEl) return;
     pendingEl.innerHTML = pending.filter(function(p){return p.incoming}).length === 0 ? '<span class="text-xs text-tertiary">无待处理申请</span>' : '';
     pending.forEach(function(p){
@@ -112,12 +112,14 @@ async function acceptFriend(id) {
   await API.post('/friends/accept/' + id);
   toast('已接受好友申请', 'success');
   loadChatData();
+  if (typeof loadFriendList === 'function') try { loadFriendList(); } catch(_) {}
 }
 
 async function rejectFriend(id) {
   await API.post('/friends/reject/' + id);
   toast('已拒绝', 'info');
   loadChatData();
+  if (typeof loadFriendList === 'function') try { loadFriendList(); } catch(_) {}
 }
 
 let chatPollInterval = null;

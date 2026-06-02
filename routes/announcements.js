@@ -18,8 +18,8 @@ router.get('/', auth, async (req, res) => {
 
 router.post('/', auth, superAdminOnly, async (req, res) => {
   const { title, content } = req.body;
-  if (!title || !title.trim()) return res.status(400).json({ error: '标题不能为空' });
-  if (!content || !content.trim()) return res.status(400).json({ error: '内容不能为空' });
+  if (!title || !String(title).trim()) return res.status(400).json({ error: '标题不能为空' });
+  if (!content || !String(content).trim()) return res.status(400).json({ error: '内容不能为空' });
   try {
     const ann = await db('announcements').insert({
       title: title.trim(), content: content.trim(), created_at: new Date().toISOString()
@@ -37,8 +37,8 @@ router.put('/:id', auth, superAdminOnly, async (req, res) => {
     if (!ann) return res.status(404).json({ error: '公告不存在' });
     const { title, content } = req.body;
     const updates = {};
-    if (title !== undefined) updates.title = title.trim();
-    if (content !== undefined) updates.content = content.trim();
+    if (title != null) updates.title = String(title).trim();
+    if (content != null) updates.content = String(content).trim();
     const updated = await db('announcements').update(id, updates);
     res.json({ announcement: updated });
   } catch (e) {

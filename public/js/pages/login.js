@@ -154,10 +154,13 @@ function clearFieldErrors() {
 
 function showFieldError(fieldId, msg) {
   var input = document.getElementById(fieldId);
-  var errEl;
-  if(fieldId === 'admin-verify-code') errEl = document.getElementById('err-verify-code');
-  else errEl = document.getElementById('err-' + fieldId.replace('reg-',''));
-  if(!errEl) errEl = document.getElementById('err-' + fieldId);
+  var map = {
+    'login-username':'err-username','login-password':'err-password',
+    'reg-username':'err-reg-username','reg-password':'err-reg-password',
+    'reg-confirm':'err-confirm','admin-verify-code':'err-verify-code'
+  };
+  var errEl = document.getElementById(map[fieldId]);
+  if (!errEl) errEl = document.getElementById('err-' + fieldId);
   if(input) input.classList.add('error');
   if(errEl){ errEl.textContent = msg; errEl.classList.add('show'); }
 }

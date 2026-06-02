@@ -36,11 +36,11 @@ async function loadFriendList() {
     if(incoming.length > 0){
       html += '<h3 class="mb-3" style="font-size:0.9rem;font-weight:600;color:var(--text-secondary)">待处理的申请</h3>';
       incoming.forEach(function(p){
-        var u = p.other;
+        var u = p.other || {};
         html += '<div class="card-glass" style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;margin-bottom:8px">';
         html += '<div class="flex items-center gap-3">';
         html += '<div class="comment-avatar" style="width:44px;height:44px;background-image:url('+avatarUrl(u)+')"></div>';
-        html += '<div><div class="font-medium">'+escapeHtml(u.nickname||u.username)+'</div><div class="text-xs text-secondary">@'+escapeHtml(u.username)+'</div></div>';
+        html += '<div><div class="font-medium">'+escapeHtml(u.nickname||u.username||'未知')+'</div><div class="text-xs text-secondary">@'+escapeHtml(u.username||'')+'</div></div>';
         html += '</div>';
         html += '<div class="flex gap-2">';
         html += '<button class="btn btn-primary btn-sm" onclick="acceptFriend('+u.id+')">接受</button>';
@@ -112,13 +112,16 @@ async function acceptFriend(id){
   await API.post('/friends/accept/'+id);
   toast('已接受好友申请','success');
   loadFriendList();
+  if (typeof loadChatData === 'function') try { loadChatData(); } catch(_) {}
 }
 async function rejectFriend(id){
   await API.post('/friends/reject/'+id);
   toast('已拒绝','info');
   loadFriendList();
+  if (typeof loadChatData === 'function') try { loadChatData(); } catch(_) {}
 }
 async function removeFriend(id, name){
+  if (!name) name = '该用户';
   showConfirm('删除好友','确定删除好友「'+name+'」吗？', async function(){
     await API.delete('/friends/'+id);
     toast('好友已删除','success');

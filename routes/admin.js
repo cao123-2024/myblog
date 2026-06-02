@@ -47,7 +47,8 @@ router.put('/users/:id/ban', auth, adminOnly, async (req, res) => {
   if (!target) return res.status(404).json({ error: '用户不存在' });
   if (!canManageUser(req.user, target)) return res.status(403).json({ error: '无权操作此用户' });
 
-  const until = new Date(Date.now() + (minutes || 60) * 60 * 1000).toISOString();
+  const min = Math.max(1, parseInt(req.body.minutes) || 60);
+  const until = new Date(Date.now() + min * 60 * 1000).toISOString();
   await db('users').update(userId, { banned_until: until });
   res.json({ message: `已封禁至 ${new Date(until).toLocaleString()}` });
 });
@@ -125,7 +126,7 @@ router.put('/users/:id/tag', auth, adminOnly, async (req, res) => {
   const userId = parseInt(req.params.id);
   const target = await db('users').getById(userId);
   if (!target) return res.status(404).json({ error: '用户不存在' });
-  const tag = (req.body.tag || '').trim().slice(0, 50);
+  const tag = String(req.body.tag || '').trim().slice(0, 50);
   await db('users').update(userId, { tag });
   res.json({ message: '备注已更新', tag });
 });
@@ -211,7 +212,7 @@ router.post('/ban-appeal', auth, async (req, res) => {
   if (existing) return res.status(400).json({ error: '你已提交过申诉，请等待管理员处理' });
   await db('ban_appeals').insert({
     user_id: req.user.id,
-    reason: (req.body.reason || '').trim().slice(0, 500),
+    reason: String(req.body.reason || '').trim().slice(0, 500),
     status: 'pending',
     created_at: new Date().toISOString()
   });
@@ -240,8 +241,8 @@ router.post('/ban-appeal/:id/approve', auth, adminOnly, async (req, res) => {
   var user = await db('users').getById(appeal.user_id);
   if (!user) return res.status(404).json({ error: '用户不存在' });
 
-  var reduceMinutes = parseInt(req.body.reduce_minutes) || 0;
-  var msg = (req.body.admin_msg || '').trim().slice(0, 200);
+  var reduceMinutes = Math.max(0, parseInt(req.body.reduce_minutes) || 0);
+  var msg = String(req.body.admin_msg || '').trim().slice(0, 200);
 
   await db('ban_appeals').update(appeal.id, {
     status: 'approved',

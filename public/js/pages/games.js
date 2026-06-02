@@ -707,9 +707,13 @@ function init_pong(){
     updateScore();paused=true;setTimeout(function(){paused=false;},800);
   }
 
-  document.addEventListener('mousemove',function(e){if(_gameActive!=='pong')return;var rect=cvs.getBoundingClientRect();p1.y=e.clientY-rect.top-ph/2;if(p1.y<0)p1.y=0;if(p1.y>H-ph)p1.y=H-ph;});
-  document.addEventListener('keydown',function(e){if(_gameActive!=='pong')return;if(e.key==='w'||e.key==='W'||e.key==='ArrowUp'){keys[e.key]=true;e.preventDefault();}else if(e.key==='s'||e.key==='S'||e.key==='ArrowDown'){keys[e.key]=true;e.preventDefault();}});
-  document.addEventListener('keyup',function(e){if(_gameActive!=='pong')return;keys[e.key]=false;});
+  function pongMM(e){if(_gameActive!=='pong')return;var rect=cvs.getBoundingClientRect();p1.y=e.clientY-rect.top-ph/2;if(p1.y<0)p1.y=0;if(p1.y>H-ph)p1.y=H-ph;}
+  document.addEventListener('mousemove', pongMM);
+  function pongKD(e){if(_gameActive!=='pong')return;if(e.key==='w'||e.key==='W'||e.key==='ArrowUp'){keys[e.key]=true;e.preventDefault();}else if(e.key==='s'||e.key==='S'||e.key==='ArrowDown'){keys[e.key]=true;e.preventDefault();}}
+  document.addEventListener('keydown', pongKD);
+  function pongKU(e){if(_gameActive!=='pong')return;keys[e.key]=false;}
+  document.addEventListener('keyup', pongKU);
+  _gameEventCleanup = function(){ document.removeEventListener('mousemove', pongMM); document.removeEventListener('keydown', pongKD); document.removeEventListener('keyup', pongKU); };
   function handleKeys(){if(_gameActive!=='pong')return;var sp=6;if(keys.w||keys.W||keys.ArrowUp)p1.y-=sp;if(keys.s||keys.S||keys.ArrowDown)p1.y+=sp;if(p1.y<0)p1.y=0;if(p1.y>H-ph)p1.y=H-ph;requestAnimationFrame(function(){handleKeys();});}
   handleKeys();
   loop=setInterval(tk,1000/60);dr();
@@ -1028,16 +1032,19 @@ function init_mechabattle() {
     timer = 99; shakeAmount = 0; screenFlash = 0; gameState = 'countdown'; countdownT = 100;
   }
 
-  document.addEventListener('keydown', function(e) {
+  function mechKD(e) {
     if (_gameActive !== 'mechabattle') return;
     if (gameState === 'ko' && (e.key === 'r' || e.key === 'R')) { fullReset(); return; }
     keys[e.key] = keys[e.code] = true;
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyG', 'KeyH', 'KeyJ', 'Period', 'Slash', 'Quote'].some(function(k) { return e.code === k; })) e.preventDefault();
-  });
-  document.addEventListener('keyup', function(e) {
+  }
+  document.addEventListener('keydown', mechKD);
+  function mechKU(e) {
     if (_gameActive !== 'mechabattle') return;
     keys[e.key] = keys[e.code] = false;
-  });
+  }
+  document.addEventListener('keyup', mechKU);
+  _gameEventCleanup = function(){ document.removeEventListener('keydown', mechKD); document.removeEventListener('keyup', mechKU); };
 
   function loop() {
     if (_gameActive !== 'mechabattle') return;

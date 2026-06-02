@@ -35,7 +35,7 @@ router.get('/', auth, async function(req, res) {
 });
 
 router.post('/set', auth, async function(req, res) {
-  var url = (req.body.url || '').trim();
+  var url = String(req.body.url || '').trim();
   try {
     var updated = await db('users').update(req.user.id, { wallpaper: url });
     var safe = Object.assign({}, updated);

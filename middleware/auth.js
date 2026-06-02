@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 const { db } = require('../database/db');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'myblog_liquid_glass_secret_key_2024';
+const JWT_SECRET = process.env.JWT_SECRET || (process.env.VERCEL ? 'myblog_liquid_glass_secret_key_2024' : 'local_dev_blog_key_not_for_production');
 
 async function auth(req, res, next) {
   const header = req.headers.authorization;
@@ -15,9 +15,11 @@ async function auth(req, res, next) {
     if (user.banned_until) {
       const until = new Date(user.banned_until);
       if (until > new Date()) {
+        if (req.path === '/ban-appeal' && req.method === 'POST') { req.user = user; return next(); }
         return res.status(403).json({ error: `账号已被封禁至 ${until.toLocaleString()}` });
       } else {
         await db('users').update(user.id, { banned_until: null });
+        delete user.banned_until;
       }
     }
     req.user = user;
@@ -62,7 +64,8 @@ function canManageUser(actor, target) {
   if (!target) return false;
   if (target.id === actor.id) return false;
   if (target.role === 'admin' && !target.created_by) return false;
-  if (actor.role === 'admin' || actor.role === 'semi_admin') return true;
+  if (actor.role === 'admin') return true;
+  if (actor.role === 'semi_admin' && target.role === 'user') return true;
   return false;
 }
 

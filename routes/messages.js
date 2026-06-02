@@ -118,7 +118,7 @@ router.post('/send/:userId', auth, async (req, res) => {
 
 router.post('/broadcast', auth, adminOnly, async (req, res) => {
   const { user_ids, content } = req.body;
-  if (!content || !content.trim()) return res.status(400).json({ error: '消息内容不能为空' });
+  if (!content || !String(content).trim()) return res.status(400).json({ error: '消息内容不能为空' });
   if (!Array.isArray(user_ids) || user_ids.length === 0) return res.status(400).json({ error: '请选择至少一个用户' });
 
   const results = [];

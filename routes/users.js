@@ -48,9 +48,9 @@ router.put('/profile', auth, upload.fields([
 ]), async (req, res) => {
   const { nickname, bio, avatar_data, bg_image_data } = req.body;
   const updates = {};
-  if (nickname) updates.nickname = nickname;
+  if (nickname !== undefined) updates.nickname = nickname;
   if (bio !== undefined) updates.bio = bio;
-  if (avatar_data) {
+  if (avatar_data !== undefined) {
     updates.avatar = avatar_data;
   } else if (req.files && req.files.avatar) {
     updates.avatar = '/uploads/' + req.files.avatar[0].filename;

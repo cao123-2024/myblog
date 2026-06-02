@@ -43,6 +43,7 @@ router.post('/login', async (req, res) => {
     const until = new Date(user.banned_until);
     if (until > new Date()) return res.status(403).json({ error: `账号已被封禁至 ${until.toLocaleString()}` });
     await db('users').update(user.id, { banned_until: null });
+    delete user.banned_until;
   }
 
   const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '7d' });

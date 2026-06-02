@@ -35,6 +35,7 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', auth, adminOnly, upload.single('file'), async (req, res) => {
   const { title, description, type, url } = req.body;
+  var safeTitle = String(title || '').trim();
 
   if (type === 'link') {
     if (!url || !url.trim()) return res.status(400).json({ error: '请输入链接地址' });

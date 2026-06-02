@@ -41,8 +41,10 @@ app.use(function(err, req, res, next) {
 
 /* Kick off DB connect in background */
 let _ready = false;
+let _dbFailed = false;
 let _dbInit = initDb().then(function(){ _ready = true; }).catch(function(err){
-  console.error('DB init failed:', err);
+  console.error('DB init failed, retrying in degraded mode:', err.message);
+  _ready = true; _dbFailed = true;
 });
 
 /* API routes — wait for DB */

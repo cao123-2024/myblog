@@ -31,7 +31,7 @@ router.get('/', optionalAuth, async (req, res) => {
     return {
       ...a,
       images: JSON.parse(a.images || '[]'),
-      download_id: a.download_id || null,
+      download_id: a.download_id != null ? a.download_id : null,
       author: author ? { id: author.id, username: author.username, nickname: author.nickname, avatar: author.avatar, role: author.role } : null
     };
   }));
@@ -62,7 +62,7 @@ router.post('/', auth, upload.array('images', 10), async (req, res) => {
     summary: summary || content.slice(0, 150),
     cover_image: coverImage,
     images: JSON.stringify(imagePaths),
-    download_id: download_id ? parseInt(download_id) : null,
+    download_id: download_id != null ? parseInt(download_id) : null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
   });
