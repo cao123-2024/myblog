@@ -6,16 +6,21 @@ const router = express.Router();
 
 var _tablesOk = false;
 var _tablesWarned = false;
+var _tablesInit = false;
 
 async function ensureTables() {
   if (_tablesOk) return true;
+  if (_tablesInit) return false;
+  _tablesInit = true;
   try {
     await db('game_queue').all();
     await db('game_rooms').all();
     await db('game_invites').all();
     _tablesOk = true;
+    _tablesInit = false;
     return true;
   } catch(e) {
+    _tablesInit = false;
     if (!_tablesWarned) {
       console.error('[GAME] 游戏表未创建，正在尝试创建...');
       _tablesWarned = true;
@@ -264,7 +269,9 @@ router.post('/room/:id/heartbeat', auth, async function(req, res) {
 
     var room = await db('game_rooms').getById(parseInt(req.params.id));
     if (!room) return res.status(404).json({ error: '房间不存在' });
-    var field = room.player1 === req.user.id ? 'p1_heartbeat' : 'p2_heartbeat';
+    var isP1 = room.player1 === req.user.id, isP2 = room.player2 === req.user.id;
+    if (!isP1 && !isP2) return res.status(403).json({ error: '无权操作' });
+    var field = isP1 ? 'p1_heartbeat' : 'p2_heartbeat';
     await db('game_rooms').update(room.id, { [field]: new Date().toISOString() });
     res.json({ ok: true });
   } catch (e) {
@@ -279,7 +286,7 @@ router.post('/room/:id/resign', auth, async function(req, res) {
     var room = await db('game_rooms').getById(parseInt(req.params.id));
     if (!room || room.status !== 'active') return res.status(400).json({ error: '无效的房间' });
     var isP1 = room.player1 === req.user.id, isP2 = room.player2 === req.user.id;
-    if (!isP1 && !isP2) return res.status(403);
+    if (!isP1 && !isP2) return res.status(403).json({ error: '无权操作' });
     var winnerId = isP1 ? room.player2 : room.player1;
     await db('game_rooms').update(room.id, { status: 'finished', winner: winnerId });
     res.json({ success: true });
@@ -320,34 +327,53 @@ router.get('/online-friends', auth, async function(req, res) {
   try {
     if (!(await ensureTables())) return res.json({ friends: [] });
 
+    await db('users').update(req.user.id, { last_seen: new Date().toISOString() }).catch(function(){});
+
     var allFriends = await db('friends').all();
     var myFriends = allFriends.filter(function(f) {
       return (f.user_id === req.user.id || f.friend_id === req.user.id) && f.status === 'accepted';
     });
     var now = Date.now();
-    var ONLINE_TIMEOUT = 30000;
+    var ONLINE_TIMEOUT = 45000;
+    var HEARTBEAT_TIMEOUT = 30000;
     var seen = {};
     var result = [];
+
+    var allRooms = (await db('game_rooms').all().catch(function(){ return []; })) || [];
+
     for (var i = 0; i < myFriends.length; i++) {
       var fid = myFriends[i].user_id === req.user.id ? myFriends[i].friend_id : myFriends[i].user_id;
       if (seen[fid]) continue;
       seen[fid] = true;
-      var fu = await db('users').getById(fid);
-      if (fu) {
-        var lastSeen = fu.last_seen ? new Date(fu.last_seen).getTime() : 0;
-        var isOnline = (now - lastSeen) < ONLINE_TIMEOUT;
-        var allRooms = await db('game_rooms').all();
-        var inGame = allRooms.some(function(r) {
-          return r.status === 'active' && (r.player1 === fid || r.player2 === fid);
+
+      var fu = null;
+      try { fu = await db('users').getById(fid); } catch(e) { continue; }
+      if (!fu) continue;
+
+      var lastSeen = 0;
+      try { if (fu.last_seen) lastSeen = new Date(fu.last_seen).getTime(); } catch(e) {}
+      var isOnline = lastSeen > 0 && (now - lastSeen) < ONLINE_TIMEOUT;
+
+      var inGame = false;
+      try {
+        inGame = allRooms.some(function(r) {
+          if (r.status !== 'active') return false;
+          if (r.player1 !== fid && r.player2 !== fid) return false;
+          var p1hb = r.p1_heartbeat ? new Date(r.p1_heartbeat).getTime() : 0;
+          var p2hb = r.p2_heartbeat ? new Date(r.p2_heartbeat).getTime() : 0;
+          var fidHB = r.player1 === fid ? p1hb : p2hb;
+          return (now - fidHB) < HEARTBEAT_TIMEOUT;
         });
-        result.push({
-          id: fu.id, username: fu.username, nickname: fu.nickname, avatar: fu.avatar,
-          online: isOnline, in_game: !!inGame
-        });
-      }
+      } catch(e) {}
+
+      result.push({
+        id: fu.id, username: fu.username, nickname: fu.nickname, avatar: fu.avatar,
+        online: isOnline, in_game: inGame
+      });
     }
     res.json({ friends: result });
   } catch (e) {
+    console.error('[GAME] online-friends error:', e.message);
     res.json({ friends: [] });
   }
 });
@@ -452,7 +478,7 @@ router.post('/invite/:id/accept', auth, async function(req, res) {
 router.post('/invite/:id/reject', auth, async function(req, res) {
   try {
     var invite = await db('game_invites').getById(parseInt(req.params.id));
-    if (!invite || invite.to_user !== req.user.id) return res.status(404);
+    if (!invite || invite.to_user !== req.user.id) return res.status(404).json({ error: '邀请不存在' });
     await db('game_invites').update(invite.id, { status: 'rejected' });
     res.json({ success: true });
   } catch (e) {

@@ -22,7 +22,8 @@ function render_games() {
   wrap.appendChild(tabs);
   var content = document.createElement('div');
   content.id = 'game-tab-content';
-  content.innerHTML = renderSingleGames();
+  content.innerHTML = '';
+  content.appendChild(renderSingleGames());
   wrap.appendChild(content);
   startOnlineHeartbeat();
   return wrap;
@@ -41,7 +42,10 @@ function switchGameTab(tab) {
   if (_multiInterval) { clearInterval(_multiInterval); _multiInterval = null; }
   if (_sentInviteCheckInterval) { clearInterval(_sentInviteCheckInterval); _sentInviteCheckInterval = null; }
   API.post('/game/queue/cancel').catch(function(){});
-  document.getElementById('game-tab-content').innerHTML = tab === 'single' ? renderSingleGames() : renderDualGames();
+  var tc = document.getElementById('game-tab-content');
+  tc.innerHTML = '';
+  if (tab === 'single') { tc.appendChild(renderSingleGames()); }
+  else { tc.innerHTML = renderDualGames(); }
   if (tab === 'dual') initDualMode();
 }
 
@@ -59,7 +63,10 @@ function iconReversi(c){return '<svg width="36" height="36" viewBox="0 0 24 24" 
 function iconMecha(c){return '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="'+c+'" stroke-width="1.6"><rect x="4" y="2" width="16" height="20" rx="3"/><rect x="7" y="5" width="4" height="4" fill="'+c+'"/><rect x="11" y="18" width="3" height="5"/><rect x="5" y="10" width="2" height="6"/><rect x="17" y="10" width="2" height="6"/><circle cx="7" cy="7" r="2" fill="#fff"/></svg>';}
 
 /* ============= LAUNCH ============= */
+var _gameEventCleanup = null;
+
 function launchGame(id) {
+  if (_gameEventCleanup) { _gameEventCleanup(); _gameEventCleanup = null; }
   _gameActive = id;
   var main = document.getElementById('main-content');
   if (!main) return;
@@ -128,7 +135,7 @@ function renderSingleGames() {
       + '<p class="text-xs text-secondary">'+g.desc+'</p>';
     grid.appendChild(el);
   });
-  return grid.outerHTML;
+  return grid;
 }
 
 /* ============= DUAL MODE ============= */
@@ -277,7 +284,7 @@ async function loadGameFriendList() {
       });
     }
     list.innerHTML = html;
-  } catch(e){}
+  } catch(e){ document.getElementById('dual-friend-list').innerHTML = '<div class="text-xs" style="color:#CF222E">加载失败，请重试</div>'; }
 }
 
 async function inviteFriend(uid, nm, av) {
@@ -304,6 +311,7 @@ function cancelInvite() { if(_sentInviteCheckInterval){clearInterval(_sentInvite
 
 async function startRandomMatch() {
   closeModal();
+  if (_multiGameType === 'mechabattle') { launchGame('mechabattle'); return; }
   try {
     var d = await API.get('/game/queue?game_type='+_multiGameType);
     if(d.room){ document.getElementById('dual-opponent-slot').innerHTML = '<div style="text-align:center"><div style="width:64px;height:64px;border-radius:50%;background-size:cover;background-position:center;margin:0 auto 8px;background-color:rgba(255,255,255,0.06);background-image:url('+avatarUrl(d.room.opponent)+')"></div><div class="text-sm font-medium">'+escapeHtml(d.room.opponent?.nickname||'')+'</div></div>'; toast('已匹配到对手!','success'); dualStartGame(d.room); return; }
@@ -465,7 +473,9 @@ function init_2048() {
   function draw(){var h='';for(var y=0;y<4;y++)for(var x=0;x<4;x++){var v=board[y][x];var c=v===0?'':(v<8?'rgba(255,255,255,0.08)':v<64?'rgba(0,120,212,0.3)':v<512?'rgba(0,120,212,0.5)':'rgba(0,120,212,0.7)');h+='<div class="gcell" style="background:'+c+'">'+(v||'')+'</div>'}document.getElementById('g2048').innerHTML=h;document.getElementById('s2048').textContent=score}
   function move(dir){var moved=false;function slide(row){var a=row.filter(function(v){return v});while(a.length<4)a.push(0);for(var i=0;i<3;i++){if(a[i]&&a[i]===a[i+1]){a[i]*=2;score+=a[i];a[i+1]=0;i++}}a=a.filter(function(v){return v});while(a.length<4)a.push(0);return a}for(var i=0;i<4;i++){var r=[];for(var j=0;j<4;j++){var y=dir===0?i:dir===2?3-i:j,x=dir===1?j:dir===3?3-j:dir===0?j:i;r.push(board[y][x])}var s=slide(r);for(var j=0;j<4;j++){var y=dir===0?i:dir===2?3-i:j,x=dir===1?j:dir===3?3-j:dir===0?j:i;if(board[y][x]!==s[j])moved=true;board[y][x]=s[j]}}return moved}
   function start(){board=[[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];score=0;add();add();draw()}
-  document.addEventListener('keydown',function k(e){if(_gameActive!=='2048')return;var d={ArrowUp:0,ArrowRight:1,ArrowDown:2,ArrowLeft:3}[e.key];if(d===undefined)return;e.preventDefault();if(move(d)){add();draw();if(!empty().length){var over=true;for(var y=0;y<4;y++)for(var x=0;x<3;x++)if(board[y][x]===board[y][x+1]||(y<3&&board[y][x]===board[y+1][x]))over=false;if(over)toast('游戏结束! '+score+'分','info')}}});
+  function k2048(e){if(_gameActive!=='2048')return;var d={ArrowUp:0,ArrowRight:1,ArrowDown:2,ArrowLeft:3}[e.key];if(d===undefined)return;e.preventDefault();if(move(d)){add();draw();if(!empty().length){var over=true;for(var y=0;y<4;y++)for(var x=0;x<3;x++)if(board[y][x]===board[y][x+1]||(y<3&&board[y][x]===board[y+1][x]))over=false;if(over)toast('游戏结束! '+score+'分','info')}}
+  document.addEventListener('keydown', k2048);
+  _gameEventCleanup = function(){ document.removeEventListener('keydown', k2048); };
   start();
 }
 
@@ -479,7 +489,9 @@ function init_snake() {
   function place(){food={x:Math.floor(Math.random()*20),y:Math.floor(Math.random()*20)}}
   place();
   function tick(){var h=snake[0],nx=h.x+(d==='right'?1:d==='left'?-1:0),ny=h.y+(d==='down'?1:d==='up'?-1:0);if(nx<0||nx>=20||ny<0||ny>=20||snake.some(function(p){return p.x===nx&&p.y===ny})){clearInterval(loop);toast('游戏结束! '+score+'分','info');return}snake.unshift({x:nx,y:ny});if(nx===food.x&&ny===food.y){score+=10;document.getElementById('sn-score').textContent=score;place()}else{snake.pop()}ctx.fillStyle='#0a0a0a';ctx.fillRect(0,0,400,400);ctx.fillStyle='#CF222E';ctx.fillRect(food.x*20,food.y*20,18,18);ctx.fillStyle='#1A7F37';snake.forEach(function(p,i){var a=i===0?1:0.6;ctx.globalAlpha=a;ctx.fillRect(p.x*20,p.y*20,18,18)});ctx.globalAlpha=1}
-  document.addEventListener('keydown',function kk(e){if(_gameActive!=='snake')return;var nd={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right'}[e.key];if(!nd)return;e.preventDefault();if((d==='up'&&nd==='down')||(d==='down'&&nd==='up')||(d==='left'&&nd==='right')||(d==='right'&&nd==='left'))return;d=nd});
+  function snKey(e){if(_gameActive!=='snake')return;var nd={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right'}[e.key];if(!nd)return;e.preventDefault();if((d==='up'&&nd==='down')||(d==='down'&&nd==='up')||(d==='left'&&nd==='right')||(d==='right'&&nd==='left'))return;d=nd}
+  document.addEventListener('keydown', snKey);
+  _gameEventCleanup = function(){ document.removeEventListener('keydown', snKey); };
   loop=setInterval(tick,150);
 }
 

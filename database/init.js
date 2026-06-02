@@ -17,7 +17,7 @@ function jsonTable(name) {
     jsonTables[name] = {
       _data: JSON.parse(fs.readFileSync(fp, 'utf8')),
       _path: fp,
-      _save() { fs.writeFileSync(this._path, JSON.stringify(this._data, null, 2), 'utf8'); },
+      _save() { const tmp = this._path + '.tmp'; fs.writeFileSync(tmp, JSON.stringify(this._data, null, 2), 'utf8'); fs.renameSync(tmp, this._path); },
       _nextId() { const max = this._data.reduce((m, r) => Math.max(m, r.id || 0), 0); return max + 1; },
       all() { this._data = JSON.parse(fs.readFileSync(this._path, 'utf8')); return this._data; },
       getById(id) { this.all(); return this._data.find(r => r.id === id) || null; },
@@ -40,6 +40,9 @@ function jsonInitDb() {
       role: 'admin', tag: '', created_by: null, banned_until: null, created_at: new Date().toISOString()
     });
   }
+  jsonTable('game_queue');
+  jsonTable('game_rooms');
+  jsonTable('game_invites');
 }
 
 /* ======== SUPABASE MODE ======== */
