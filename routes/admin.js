@@ -5,6 +5,10 @@ const jwt = require('jsonwebtoken');
 
 const router = express.Router();
 
+const R = '\x1b[0m', B = '\x1b[1m', D = '\x1b[2m';
+const CY = '\x1b[38;5;51m';
+function writeLine(s) { console.log('  ' + CY + '◌' + R + ' ' + s); }
+
 const isVercel = process.env.VERCEL === '1';
 const ADMIN_PIN = process.env.ADMIN_PIN || '000000';
 
@@ -30,17 +34,9 @@ router.post('/request-verify', auth, adminOnly, async (req, res) => {
     created_at: new Date().toISOString()
   });
 
-  console.log('');
-  console.log('╔══════════════════════════════════════╗');
-  console.log('║      🔐 管理员验证码                 ║');
-  console.log('║                                      ║');
-  console.log('║         ' + code + '                       ║');
-  console.log('║                                      ║');
-  console.log('║  有效期 5 分钟，仅单次使用            ║');
-  console.log('╚══════════════════════════════════════╝');
-  console.log('');
+  writeLine(B + '管理员验证码' + R + '  ' + D + code + R + '  (5分钟有效)');
 
-  res.json({ message: '验证码已显示在终端，请查收' });
+  res.json({ message: '验证码: ' + code, code: code });
 });
 
 router.post('/verify-and-login', auth, adminOnly, async (req, res) => {

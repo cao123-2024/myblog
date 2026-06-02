@@ -54,7 +54,6 @@ router.get('/queue', auth, async function(req, res) {
     var opponents = await db('game_queue').find({ status: 'waiting' });
     var opponent = opponents.find(function(o) { return o.user_id !== req.user.id && (o.game_type || 'gomoku') === gameType; });
     if (opponent) {
-      await db('game_queue').update(opponent.id, { status: 'matched', matched_with: req.user.id });
       var room = await db('game_rooms').insert({
         player1: opponent.user_id,
         player2: req.user.id,
@@ -64,6 +63,7 @@ router.get('/queue', auth, async function(req, res) {
         status: 'active',
         created_at: new Date().toISOString()
       });
+      await db('game_queue').update(opponent.id, { status: 'matched', matched_with: req.user.id, room_id: room.id });
       await db('game_queue').insert({
         user_id: req.user.id,
         game_type: gameType,
