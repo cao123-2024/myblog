@@ -21,6 +21,7 @@ const BL = f(33);
 const CY = f(51);
 const GN = f(46);
 const RD = f(196);
+const YL = f(226);
 const GR = f(240);
 const WT = f(255);
 
@@ -30,7 +31,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 /* ─── 剥离 ANSI ─── */
 function strip(s) { return s.replace(/\x1b\[[0-9;]*m/g, ''); }
 
-/* ─── 显示宽度：CJK=2, ASCII/制表符=1 ─── */
+/* ─── 显示宽度 ─── */
 function dw(s) {
   let w = 0;
   for (const ch of strip(s)) {
@@ -77,8 +78,8 @@ function killPort(port) {
   } catch (_) {}
 }
 
-/* ─── 单个旋转符 ─── */
-function spinner(text, ms) {
+/* ─── 旋转符 ─── */
+function spinner(text) {
   const sym = ['◌', '○', '◔', '◑', '◕', '●'];
   let i = 0;
   const t = setInterval(() => {
@@ -86,6 +87,87 @@ function spinner(text, ms) {
     i++;
   }, 100);
   return () => { clearInterval(t); };
+}
+
+/* ─── 询问：回车=重启, Q=退出 ─── */
+function askPrompt() {
+  return new Promise((resolve) => {
+    const prompt = [
+      B + CY + 'LUMINA' + R + '  ' + WT + '服务已停止' + R,
+      '',
+      WT + 'Enter   ' + D + '重启服务' + R,
+      WT + 'Q       ' + D + '退出' + R,
+    ];
+    write(box(prompt) + '\n');
+    write('  ' + D + '→ ' + R);
+
+    /* Windows 下必须 setRawMode 才能逐键读取 */
+    const wasRaw = process.stdin.isRaw;
+    process.stdin.setRawMode(true);
+    process.stdin.resume();
+
+    const handler = (buf) => {
+      const key = buf.toString().toLowerCase();
+      if (key === '\r' || key === '\n') {
+        /* Enter = 重启 */
+        cleanup();
+      } else if (key === 'q' || key === '\x03') {
+        /* Q 或 Ctrl+C = 退出 */
+        cleanup();
+        write('\n' + GR + '  已退出' + R + '\n\n');
+        process.exit(0);
+      } else {
+        /* 其他按键忽略 */
+        return;
+      }
+    };
+
+    const cleanup = () => {
+      process.stdin.removeListener('data', handler);
+      process.stdin.setRawMode(wasRaw);
+      process.stdin.pause();
+      resolve();
+    };
+
+    process.stdin.on('data', handler);
+
+    /* 5 分钟无操作自动退出 */
+    setTimeout(() => {
+      cleanup();
+      write('\n' + GR + '  超时自动退出' + R + '\n');
+      process.exit(0);
+    }, 300000);
+  });
+}
+
+/* ─── 启动子进程 server.js ─── */
+function startServer() {
+  return new Promise((resolve) => {
+    const child = spawn(NODE_EXE, ['server.js'], {
+      cwd: ROOT, stdio: 'inherit', env: { ...process.env, FORCE_COLOR: '1' },
+    });
+
+    let resolved = false;
+
+    /* Ctrl+C → 只杀子进程，父进程不退出 */
+    const onSigint = () => {
+      if (!child.killed) child.kill('SIGINT');
+    };
+    process.on('SIGINT', onSigint);
+    process.on('SIGTERM', onSigint);
+
+    child.on('exit', (code) => {
+      process.removeListener('SIGINT', onSigint);
+      process.removeListener('SIGTERM', onSigint);
+      if (!resolved) { resolved = true; resolve(code); }
+    });
+
+    child.on('error', (err) => {
+      process.removeListener('SIGINT', onSigint);
+      process.removeListener('SIGTERM', onSigint);
+      if (!resolved) { resolved = true; resolve(-1); }
+    });
+  });
 }
 
 /* ══════════════════════════════════ MAIN ═══════════════════════════════ */
@@ -97,10 +179,9 @@ async function main() {
   write('  ' + B + CY + 'LUMINA' + R + '  ' + D + GR + '液态玻璃博客系统' + R + '\n');
   write('\n');
 
-  /* ─── 一条旋转线 ─── */
-  let stop = spinner('正在启动...', 0);
+  /* ─── 启动动画 ─── */
+  let stop = spinner('正在启动...');
 
-  /* 后台准备 */
   for (const d of ['uploads', 'database/data'].map(p => path.join(ROOT, p)))
     if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
 
@@ -108,14 +189,13 @@ async function main() {
     stop();
     write('\r  ' + GR + '释放端口 ' + PORT + '...' + R + '\x1b[K');
     killPort(PORT); await sleep(600);
-    const s2 = spinner('正在启动...', 0);
+    stop = spinner('正在启动...');
     await sleep(300);
-    stop = s2;
   }
   await sleep(300);
 
   stop();
-  write('\r\x1b[2K');  /* 清除旋转行 */
+  write('\r\x1b[2K');
 
   const info = [
     B + CY + 'LUMINA' + R + '  ' + D + '启动成功' + R,
@@ -127,27 +207,40 @@ async function main() {
   write(box(info) + '\n\n');
   write(SH);
 
-  /* 自动提交到 GitHub */
+  /* ─── 自动提交 ─── */
   try {
-    require('child_process').execSync('node scripts/autocommit.js', { cwd: ROOT, stdio: 'inherit' });
+    execSync('node scripts/autocommit.js', { cwd: ROOT, stdio: 'inherit' });
   } catch (_) {}
 
-  /* 启动 server，日志自然流出 */
-  const child = spawn(NODE_EXE, ['server.js'], {
-    cwd: ROOT, stdio: 'inherit', env: { ...process.env, FORCE_COLOR: '1' },
-  });
+  /* ─── 循环：服务器退出后询问重启还是退出 ─── */
+  await startServer(); /* 首次启动 */
 
-  const cleanup = () => { child.kill(); setTimeout(() => process.exit(0), 500); };
-  process.on('SIGINT', cleanup);
-  process.on('SIGTERM', cleanup);
+  while (true) {
+    await askPrompt();  /* 等待 Enter 或 Q */
+    /* Enter → 清屏 → 快速重启，不重复动画 */
+    write(HI + CL);
+    write('\n');
+    write('  ' + B + CY + 'LUMINA' + R + '  ' + D + GR + '正在重启' + R + '\n');
+    write('\n');
+    let st2 = spinner('重新启动中...');
+    await sleep(400);
+    st2();
+    write('\r\x1b[2K');
 
-  child.on('exit', (code) => {
-    write('\n' + GR + '  服务已停止 (code ' + (code || 0) + ')' + R + '\n');
-    process.exit(code || 0);
-  });
+    const info2 = [
+      B + CY + 'LUMINA' + R + '  ' + D + '已重启' + R,
+      '',
+      WT + 'http://localhost:' + PORT + R,
+      '',
+      D + 'Ctrl+C 停止 ' + '·' + ' Node.js ' + process.version + R,
+    ];
+    write(box(info2) + '\n\n');
+    write(SH);
+    await startServer();
+  }
 }
 
-/* ─── 错误：框内显示 → 按任意键退出 ─── */
+/* ─── 错误处理 ─── */
 main().catch((e) => {
   write(SH + '\n');
   const err = [
