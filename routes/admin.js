@@ -1,10 +1,11 @@
 const express = require('express');
-const { db } = require('../database/db');
+const { db, MODE } = require('../database/db');
 const { auth, adminOnly, superAdminOnly, isSuperAdmin, canManageUser, canEditArticle, JWT_SECRET } = require('../middleware/auth');
 const jwt = require('jsonwebtoken');
 
 const router = express.Router();
 
+const isVercel = process.env.VERCEL === '1';
 const ADMIN_PIN = process.env.ADMIN_PIN || '000000';
 
 var _uploadTableOk = false;
@@ -20,16 +21,47 @@ async function ensureUploadTable() {
 }
 
 router.post('/request-verify', auth, adminOnly, async (req, res) => {
-  res.json({ message: '请输入管理员PIN码' });
+  if (isVercel) return res.json({ message: '请输入管理员PIN码' });
+
+  var code = String(Math.floor(Math.random() * 900000 + 100000));
+  await db('verifyCodes').insert({
+    code: code,
+    used: 0,
+    created_at: new Date().toISOString()
+  });
+
+  console.log('');
+  console.log('╔══════════════════════════════════════╗');
+  console.log('║      🔐 管理员验证码                 ║');
+  console.log('║                                      ║');
+  console.log('║         ' + code + '                       ║');
+  console.log('║                                      ║');
+  console.log('║  有效期 5 分钟，仅单次使用            ║');
+  console.log('╚══════════════════════════════════════╝');
+  console.log('');
+
+  res.json({ message: '验证码已显示在终端，请查收' });
 });
 
 router.post('/verify-and-login', auth, adminOnly, async (req, res) => {
-  const { code } = req.body;
-  if (!code) return res.status(400).json({ error: '请输入PIN码' });
-  if (code !== ADMIN_PIN) return res.status(400).json({ error: 'PIN码错误' });
+  var code = (req.body.code || '').trim();
+  if (!code) return res.status(400).json({ error: '请输入验证码' });
 
-  const adminToken = jwt.sign({ id: req.user.id, admin: true }, JWT_SECRET, { expiresIn: '2h' });
-  res.json({ adminToken, message: '管理员验证通过' });
+  if (!isVercel) {
+    var allCodes = await db('verifyCodes').all();
+    allCodes.sort(function(a, b) { return new Date(b.created_at) - new Date(a.created_at); });
+    var latest = allCodes.find(function(c) { return c.used === 0; });
+    if (!latest) return res.status(400).json({ error: '无效或过期的验证码，请重新请求' });
+    var age = Date.now() - new Date(latest.created_at).getTime();
+    if (age > 5 * 60 * 1000) return res.status(400).json({ error: '验证码已过期（5分钟），请重新请求' });
+    if (code !== latest.code) return res.status(400).json({ error: '验证码错误，请核对终端显示的验证码' });
+    await db('verifyCodes').update(latest.id, { used: 1 });
+  } else {
+    if (code !== ADMIN_PIN) return res.status(400).json({ error: 'PIN码错误' });
+  }
+
+  var adminToken = jwt.sign({ id: req.user.id, admin: true }, JWT_SECRET, { expiresIn: '2h' });
+  res.json({ adminToken: adminToken, message: '管理员验证通过' });
 });
 
 router.get('/users', auth, adminOnly, async (req, res) => {
