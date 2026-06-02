@@ -1,6 +1,7 @@
 var _gameActive = null;
 var _gameTab = 'single';
 var _multiInterval = null;
+var _matchPollInterval = null;
 var _multiRoomId = null;
 var _multiMyColor = null;
 var _multiGameType = 'gomoku';
@@ -323,11 +324,11 @@ async function startRandomMatch() {
 }
 
 function pollMatchStatus() {
-  if(_multiInterval)clearInterval(_multiInterval);
-  _multiInterval = setInterval(async function(){
+  if(_matchPollInterval)clearInterval(_matchPollInterval);
+  _matchPollInterval = setInterval(async function(){
     try {
       var d = await API.get('/game/queue/status');
-      if(d.matched&&d.room){ clearInterval(_multiInterval);_multiInterval=null;
+      if(d.matched&&d.room){ clearInterval(_matchPollInterval);_matchPollInterval=null;
         document.getElementById('dual-opponent-slot').innerHTML = '<div style="text-align:center"><div style="width:64px;height:64px;border-radius:50%;background-size:cover;background-position:center;margin:0 auto 8px;background-color:rgba(255,255,255,0.06);background-image:url('+avatarUrl(d.room.opponent)+')"></div><div class="text-sm font-medium">'+escapeHtml(d.room.opponent?.nickname||'')+'</div></div>';
         document.getElementById('dual-status').innerHTML = '<p class="text-sm" style="color:#1A7F37">已匹配!</p>'; toast('已匹配到对手!','success');
         _multiGameType = d.room.game_type||'gomoku'; setTimeout(function(){dualStartGame(d.room);},500); }
@@ -335,11 +336,12 @@ function pollMatchStatus() {
   }, 2000);
 }
 
-function cancelMatch() { clearInterval(_multiInterval); _multiInterval=null; API.post('/game/queue/cancel').catch(function(){}); initDualMode(); }
+function cancelMatch() { clearInterval(_matchPollInterval); _matchPollInterval=null; API.post('/game/queue/cancel').catch(function(){}); initDualMode(); }
 
 /* ============= DUAL GAME FULLSCREEN ============= */
 function dualStartGame(room) {
   if(_multiInterval){clearInterval(_multiInterval);_multiInterval=null;}
+  if(_matchPollInterval){clearInterval(_matchPollInterval);_matchPollInterval=null;}
   if(_sentInviteCheckInterval){clearInterval(_sentInviteCheckInterval);_sentInviteCheckInterval=null;}
   _multiRoomId = room.id; _multiMyColor = room.you_color||1; _multiGameType = room.game_type||'gomoku';
   var gi = DUAL_GAMES.find(function(g){return g.id===_multiGameType;})||DUAL_GAMES[0];
