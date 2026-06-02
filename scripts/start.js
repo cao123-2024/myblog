@@ -101,37 +101,31 @@ function askPrompt() {
     write(box(prompt) + '\n');
     write('  ' + D + '→ ' + R);
 
-    /* Windows 下必须 setRawMode 才能逐键读取 */
     const wasRaw = process.stdin.isRaw;
-    process.stdin.setRawMode(true);
+
+    try { process.stdin.setRawMode(true); } catch (_) {}
     process.stdin.resume();
 
     const handler = (buf) => {
       const key = buf.toString().toLowerCase();
       if (key === '\r' || key === '\n') {
-        /* Enter = 重启 */
         cleanup();
       } else if (key === 'q' || key === '\x03') {
-        /* Q 或 Ctrl+C = 退出 */
         cleanup();
         write('\n' + GR + '  已退出' + R + '\n\n');
         process.exit(0);
-      } else {
-        /* 其他按键忽略 */
-        return;
       }
     };
 
     const cleanup = () => {
       process.stdin.removeListener('data', handler);
-      process.stdin.setRawMode(wasRaw);
+      try { process.stdin.setRawMode(wasRaw); } catch (_) {}
       process.stdin.pause();
       resolve();
     };
 
     process.stdin.on('data', handler);
 
-    /* 5 分钟无操作自动退出 */
     setTimeout(() => {
       cleanup();
       write('\n' + GR + '  超时自动退出' + R + '\n');
@@ -252,8 +246,8 @@ main().catch((e) => {
   ];
   write(box(err) + '\n\n');
 
-  process.stdin.setRawMode(true);
+  try { process.stdin.setRawMode(true); } catch (_) {}
   process.stdin.resume();
-  process.stdin.once('data', () => { process.stdin.setRawMode(false); process.exit(1); });
+  process.stdin.once('data', () => { try { process.stdin.setRawMode(false); } catch (_) {} process.exit(1); });
   setTimeout(() => process.exit(1), 60000);
 });
