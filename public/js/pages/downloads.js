@@ -141,7 +141,7 @@ function showUploadModal() {
       loadDownloads();
     } catch(e) {
       if (e.message && (e.message.includes('413') || e.message.includes('太大') || e.message.includes('too large') || e.message.includes('Payload'))) {
-        toast('文件太大，Vercel 限制 4.5MB', 'error');
+        toast(window._isLocal ? '文件太大' : '文件太大，Vercel 限制 4.5MB', 'error');
       }
     }
   }, window._dlMode === 'link' ? '添加' : '上传');
@@ -178,6 +178,7 @@ function showUploadingStatus(msg) {
 }
 
 function compressImage(file) {
+  if (window._isLocal) return Promise.resolve(file);
   return new Promise(function(resolve, reject) {
     var img = new Image();
     var url = URL.createObjectURL(file);
