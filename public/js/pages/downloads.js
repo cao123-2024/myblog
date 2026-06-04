@@ -1,4 +1,4 @@
-function render_downloads() {
+﻿function render_downloads() {
   var wrap = document.createElement('div');
   wrap.className = 'stagger';
 
@@ -47,19 +47,18 @@ async function loadDownloads() {
         + '<div style="width:44px;height:44px;border-radius:var(--radius-md);background:var(--bg-glass);display:flex;align-items:center;justify-content:center;flex-shrink:0">'
         + iconSvg
         + '</div>'
-        + '<div style="flex:1;min-width:0">'
+       + '<div style="flex:1;min-width:0">'
         + '<div class="font-medium" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escapeHtml(f.title||f.originalName)+tagHtml+'</div>'
-        + '<div class="text-xs text-secondary">'+(isLink ? '网盘链接 · ' : sizeStr+' · ')+f.download_count+'次点击 · '+formatDate(f.created_at)+'</div>'
-        + '</div>'
+        + (f.originalName && f.title && f.title !== f.originalName ? '<div class="text-xs" style="color:var(--text-tertiary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📄 '+escapeHtml(f.originalName)+'</div>' : '')
+        + '<div class="text-xs text-secondary">'+(isLink ? '网盘链接' : sizeStr)+' · '+f.download_count+'次点击 · '+formatDate(f.created_at)+'</div>'
+       + '</div>'
         + '</div>'
         + '<div class="flex gap-2" style="flex-shrink:0">'
         + '<button class="btn btn-primary btn-sm" onclick="downloadFile('+f.id+')">'+ (isLink ? '前往' : '下载') +'</button>'
         + (Store.isAdmin() ? '<button class="btn btn-glass btn-sm" onclick="deleteDownload('+f.id+')">删除</button>' : '')
         + '</div>'
         + '</div>';
-      if(f.description) {
-        html += '<div class="text-xs text-secondary" style="margin:-4px 0 12px 64px">'+escapeHtml(f.description)+'</div>';
-      }
+
     });
     el.innerHTML = html;
   } catch(e) {

@@ -227,7 +227,10 @@ function checkSentInviteStatus() {
           var nm = (invs[i].to && (invs[i].to.nickname || invs[i].to.username)) || '对方';
           toast(nm + ' 拒绝了你的邀请', 'info');
           API.post('/game/queue/cancel').catch(function(){});
-          initDualMode(); return;
+          document.getElementById('dual-status').innerHTML = '';
+          document.getElementById('dual-actions').innerHTML = '';
+          document.getElementById('dual-opponent-slot').innerHTML = '<div style="text-align:center"><div style="width:64px;height:64px;border-radius:50%;border:2px dashed rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;margin:0 auto 8px;cursor:pointer" id="dual-plus-btn" onclick="showDualInviteOptions()"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><div class="text-xs text-secondary">选择对手</div></div>';
+          return;
         }
         if (invs[i].status === 'accepted') { findActiveRoom(); return; }
       }
@@ -251,7 +254,7 @@ function showDualInviteOptions() {
     + '<div class="text-sm font-medium mb-2">选择游戏</div>'
     + '<select id="dual-invite-game" class="input input-glass" style="margin-bottom:12px;width:100%">'+gs+'</select>'
     + '<div class="text-sm font-medium mb-2">在线好友</div>'
-    + '<div id="dual-friend-list" style="margin-bottom:12px"><div class="text-xs text-secondary p-2">加载中...</div></div>'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><span class="text-sm font-medium">在线好友</span><button class="btn btn-glass btn-sm" style="padding:2px 10px;font-size:0.7rem;border-radius:6px" onclick="loadGameFriendList()">刷新</button></div><div id="dual-friend-list" style="margin-bottom:12px"><div class="text-xs text-secondary p-2">加载中...</div></div>'
     + '<div style="border-top:1px solid var(--border-subtle);padding-top:12px">'
     + '<div class="text-sm font-medium mb-2">随机匹配</div>'
     + '<button class="btn btn-primary btn-sm w-full" onclick="startRandomMatch()">寻找在线对手</button></div></div>';

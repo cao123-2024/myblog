@@ -483,6 +483,18 @@ router.post('/invite/:id/accept', auth, async function(req, res) {
   }
 });
 
+router.delete('/invite/:id', auth, async function(req, res) {
+  try {
+    var invite = await db('game_invites').getById(parseInt(req.params.id));
+    if (!invite) return res.status(404).json({ error: '邀请不存在' });
+    if (invite.from_user !== req.user.id) return res.status(403).json({ error: '无权操作' });
+    await db('game_invites').delete(invite.id);
+    res.json({ success: true });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.post('/invite/:id/reject', auth, async function(req, res) {
   try {
     var invite = await db('game_invites').getById(parseInt(req.params.id));

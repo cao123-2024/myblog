@@ -73,7 +73,7 @@ const Store = {
     this.token = ''; this.adminToken = ''; this.user = null;
     API.token = ''; API.adminToken = '';
     localStorage.removeItem('token'); localStorage.removeItem('adminToken');
-    wsDisconnect();
+    try { wsDisconnect(); } catch(e) {}
     updateNav();
   },
   logoutAdmin() {
@@ -131,11 +131,13 @@ function updateNav() {
 
   if (Store.user) {
     userInfo.classList.remove('hidden');
-    $('#nav-username').textContent = Store.user.nickname || Store.user.username;
-    var av = Store.user.avatar || getDefaultAvatar(Store.user.username);
-    $('#nav-avatar').style.backgroundImage = av ? "url('" + av + "')" : 'none';
+   $('#nav-username').textContent = Store.user.nickname || Store.user.username;
+   var av = Store.user.avatar || getDefaultAvatar(Store.user.username);
+    $('#nav-avatar').style.backgroundImage = cssUrl(av);
+    $('#nav-avatar').style.backgroundSize = 'cover';
+    $('#nav-avatar').style.backgroundPosition = 'center';
     $('#nav-avatar').style.backgroundColor = '';
-  } else {
+ } else {
     userInfo.classList.add('hidden');
   }
   adminLinks.forEach(function(el){
@@ -221,7 +223,7 @@ function wsReconnect() {
 function wsDisconnect() {
   if (_wsReconnectTimer) { clearTimeout(_wsReconnectTimer); _wsReconnectTimer = null; }
   _wsReconnectAttempts = _wsMaxReconnect;
-  if (_ws) { _ws.close(); _ws = null; }
+  try { if (_ws) { _ws.close(); _ws = null; } } catch(e) { _ws = null; }
 }
 
   /* Start polling for unread messages & announcements - also connect WS */

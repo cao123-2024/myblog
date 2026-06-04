@@ -439,6 +439,31 @@
   border-color: rgba(255,255,255,0.4) !important;
   transform: scale(1.03);
 }
+
+    /* Dev admin quick-login buttons */
+    .dev-admin-btn {
+      position: fixed;
+      z-index: 9999;
+      padding: 4px 10px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: #fff;
+      background: rgba(0,120,212,0.65);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(0,120,212,0.4);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.34,1.56,0.64,1);
+      opacity: 0.5;
+    }
+    .dev-admin-btn:hover {
+      opacity: 1;
+      background: rgba(0,120,212,0.85);
+      transform: scale(1.05);
+      box-shadow: 0 2px 12px rgba(0,120,212,0.3);
+    }
+    .dev-admin-btn.tl { top: 8px; left: 8px; }
+    .dev-admin-btn.bl { bottom: 8px; left: 8px; }
 </style>
 </head>
 <body>
@@ -581,6 +606,10 @@
       </div>
     </div>
   </nav>
+
+  <!-- Dev admin quick-login buttons (local only) -->
+  <button class="dev-admin-btn tl hidden" id="devAdminBtnTL" onclick="autoAdminLogin()">???</button>
+  <button class="dev-admin-btn bl hidden" id="devAdminBtnBL" onclick="autoAdminLogin()">???</button>
   <div class="main-content" id="main-content"></div>
 </div>
 
@@ -706,3 +735,39 @@ window._isLocal = location.hostname === 'localhost' || location.hostname === '12
 </script>
 </body>
 </html>
+
+
+  /* === Dev auto admin login (local only) === */
+  function autoAdminLogin() {
+    var u = prompt('?????????', 'admin');
+    if (!u) return;
+    var p = prompt('????????');
+    if (!p) return;
+    (async function() {
+      try {
+        toast('???...', 'info');
+        var loginData = await API.post('/auth/login', { username: u, password: p });
+        if (loginData.user.role !== 'admin') {
+          toast('????????', 'error');
+          return;
+        }
+        Store.login(loginData.token, loginData.user);
+        var verifyData = await API.post('/verify-and-login', { code: 'DEV_BYPASS' });
+        Store.loginAdmin(verifyData.adminToken);
+        toast('??????', 'success');
+        navigate('admin');
+      } catch(e) {
+        toast('????: ' + (e.message || '????'), 'error');
+      }
+    })();
+  }
+  /* Show dev buttons when local */
+  if (window._isLocal) {
+    (function() {
+      var btnTL = document.getElementById('devAdminBtnTL');
+      var btnBL = document.getElementById('devAdminBtnBL');
+      if (btnTL) btnTL.classList.remove('hidden');
+      if (btnBL) btnBL.classList.remove('hidden');
+    })();
+  }
+

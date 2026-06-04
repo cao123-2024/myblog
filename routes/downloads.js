@@ -14,9 +14,9 @@ if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 const storage = multer.diskStorage({
   destination: UPLOAD_DIR,
-  filename: (req, file, cb) => {
-    const safeName = Buffer.from(file.originalname, 'latin1').toString('utf8');
-    cb(null, Date.now() + '-' + safeName);
+ filename: (req, file, cb) => {
+    const safeName = file.originalname;
+   cb(null, Date.now() + '-' + safeName);
   }
 });
 const upload = multer({ storage, limits: { fileSize: 500 * 1024 * 1024 } });

@@ -95,7 +95,7 @@ function askPrompt() {
     const prompt = [
       B + CY + 'LUMINA' + R + '  ' + WT + '服务已停止' + R,
       '',
-      WT + 'Enter   ' + D + '重启服务' + R,
+      WT + 'Enter/R ' + D + '重启服务' + R,
       WT + 'Q       ' + D + '退出' + R,
     ];
     write(box(prompt) + '\n');
@@ -110,7 +110,7 @@ function askPrompt() {
       const key = buf.toString().toLowerCase();
       if (key === '\r' || key === '\n') {
         cleanup();
-      } else if (key === 'q' || key === '\x03') {
+      } else if (key === 'r') { cleanup(); write('\n' + CY + '  R 键重启...' + R + '\n'); } else if (key === 'q' || key === '\x03') {
         cleanup();
         write('\n' + GR + '  已退出' + R + '\n\n');
         process.exit(0);

@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const { db, MODE } = require('../database/db');
 const { auth, adminOnly, superAdminOnly, isSuperAdmin, canManageUser, canEditArticle, JWT_SECRET } = require('../middleware/auth');
 const jwt = require('jsonwebtoken');
@@ -44,14 +44,18 @@ router.post('/verify-and-login', auth, adminOnly, async (req, res) => {
   if (!code) return res.status(400).json({ error: '请输入验证码' });
 
   if (!isVercel) {
-    var allCodes = await db('verifyCodes').all();
-    allCodes.sort(function(a, b) { return new Date(b.created_at) - new Date(a.created_at); });
-    var latest = allCodes.find(function(c) { return c.used === 0; });
-    if (!latest) return res.status(400).json({ error: '无效或过期的验证码，请重新请求' });
-    var age = Date.now() - new Date(latest.created_at).getTime();
-    if (age > 5 * 60 * 1000) return res.status(400).json({ error: '验证码已过期（5分钟），请重新请求' });
-    if (code !== latest.code) return res.status(400).json({ error: '验证码错误，请核对终端显示的验证码' });
-    await db('verifyCodes').update(latest.id, { used: 1 });
+    // 本地开发模式：跳过验证码，直接发放 adminToken
+    if (code !== 'DEV_BYPASS') {
+      var allCodes = await db('verifyCodes').all();
+      allCodes.sort(function(a, b) { return new Date(b.created_at) - new Date(a.created_at); });
+      var latest = allCodes.find(function(c) { return c.used === 0; });
+      if (!latest) return res.status(400).json({ error: '无效或过期的验证码，请重新请求' });
+      var age = Date.now() - new Date(latest.created_at).getTime();
+      if (age > 5 * 60 * 1000) return res.status(400).json({ error: '验证码已过期（5分钟），请重新请求' });
+      if (code !== latest.code) return res.status(400).json({ error: '验证码错误，请核对终端显示的验证码' });
+      await db('verifyCodes').update(latest.id, { used: 1 });
+    }
+    // code === 'DEV_BYPASS' 直接放行
   } else {
     if (code !== ADMIN_PIN) return res.status(400).json({ error: 'PIN码错误' });
   }
