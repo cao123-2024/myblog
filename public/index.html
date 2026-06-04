@@ -570,10 +570,16 @@
       <div class="swipe-dot" data-dot="1"></div>
     </div>
 
-    <div class="guest-row">
-      <button id="guest-btn">游客浏览</button>
+   <div class="guest-row">
+     <button id="guest-btn">游客浏览</button>
     </div>
-  </div>
+    <div id="devAdminBtnTL" class="hidden" style="position:fixed;top:8px;left:8px;z-index:99999">
+      <button class="btn btn-glass btn-sm" style="font-size:0.7rem;opacity:0.5" onclick="autoAdminLogin()" title="开发：管理员一键登录">⚡ 管理员</button>
+    </div>
+    <div id="devAdminBtnBL" class="hidden" style="text-align:center;padding:8px 0">
+      <button class="btn btn-glass btn-sm" style="font-size:0.7rem;opacity:0.5" onclick="autoAdminLogin()" title="开发：管理员一键登录">⚡ 管理员快速登录</button>
+   </div>
+ </div>
 </div>
 
 <!-- ===== MAIN APP (hidden until login) ===== -->
@@ -746,13 +752,13 @@ window._isLocal = location.hostname === 'localhost' || location.hostname === '12
     (async function() {
       try {
         toast('???...', 'info');
-        var loginData = await API.post('/auth/login', { username: u, password: p });
+        var loginData = await API.post('/login', { username: u, password: p });
         if (loginData.user.role !== 'admin') {
           toast('????????', 'error');
           return;
         }
         Store.login(loginData.token, loginData.user);
-        var verifyData = await API.post('/verify-and-login', { code: 'DEV_BYPASS' });
+        var verifyData = await API.post('/admin/verify-and-login', { code: 'DEV_BYPASS' });
         Store.loginAdmin(verifyData.adminToken);
         toast('??????', 'success');
         navigate('admin');
