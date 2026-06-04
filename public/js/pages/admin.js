@@ -144,7 +144,7 @@ async function loadAdminUsers() {
     var users = data.users || [];
 
     var html = '<table class="admin-table"><thead><tr>'
-      + '<th>ID</th><th>用户名</th><th>昵称</th><th>角色</th><th>授权人</th><th>备注</th><th>状态</th><th>操作</th>'
+      + '<th>ID</th><th>头像</th><th>用户名</th><th>昵称</th><th>角色</th><th>授权人</th><th>备注</th><th>状态</th><th>操作</th>'
       + '</tr></thead><tbody>';
 
     users.forEach(function(u){
@@ -191,7 +191,7 @@ async function loadAdminUsers() {
       }
 
       html += '<tr>'
-        + '<td>'+u.id+'</td>'
+        + '<td>'+u.id+'</td>'\n        + '<td><div class="comment-avatar" style="background-image:' + cssUrl(avatarUrl(u)) + ';width:32px;height:32px;border-radius:50%;background-size:cover;background-color:var(--bg-glass)"></div></td>'
         + '<td>'+escapeHtml(u.username)+'</td>'
         + '<td>'+escapeHtml(u.nickname||'')+'</td>'
         + '<td><span style="'+roleColor+';font-weight:500">'+roleLabel+'</span></td>'
@@ -355,7 +355,7 @@ async function loadAdminWallpapers() {
     if (wps.length === 0) { list.innerHTML = '<div class="text-center text-secondary p-4">暂无壁纸</div>'; return; }
     var html = '';
     wps.forEach(function(w) {
-      html += '<div style="position:relative;aspect-ratio:16/9;border-radius:10px;background-image:url('+escapeHtml(w.url)+');background-size:cover;background-position:center;overflow:hidden">'
+      html += '<div style="position:relative;aspect-ratio:16/9;border-radius:10px;background-image:' + cssUrl(w.url) + ';background-size:cover;background-position:center;overflow:hidden">'
         + '<button onclick="deleteAdminWallpaper('+w.id+')" style="position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,0.6);border:none;color:#fff;cursor:pointer;font-size:14px;line-height:24px;text-align:center" title="删除">&times;</button>'
         + '</div>';
     });
@@ -540,4 +540,6 @@ async function rejectAppeal(appealId) {
   toast('已驳回', 'info');
   loadBanAppeals();
 }
+
+
 

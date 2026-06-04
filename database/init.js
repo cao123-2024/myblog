@@ -228,6 +228,7 @@ async function sbInitDb() {
 
   await createWallpapersTables();
   createAnnouncementsTable().catch(function(e){ console.error('[DB] announcements:', e.message); });
+  ensureStorageBuckets().catch(function(e){ console.error('[DB] storage:', e.message); });
   enableRlsOnAllTables().catch(function(e){ console.error('[DB] RLS:', e.message); });
 
   supabaseReady = true;
@@ -243,7 +244,8 @@ function db(tableName) {
       find: w => Promise.resolve(t.find(w).sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))),
       insert: r => Promise.resolve(t.insert(r)),
       update: (id, u) => Promise.resolve(t.update(id, u)),
-      delete: id => Promise.resolve(t.delete(id))
+      delete: id => Promise.resolve(t.delete(id)),
+      increment: (id, field, amount) => { const item = t.getById(id); if (!item) return Promise.resolve(null); item[field] = (item[field]||0) + (amount||1); t.update(id, item); return Promise.resolve(item); }
     };
   }
   return {
@@ -259,7 +261,8 @@ function db(tableName) {
     },
     insert: r => supabaseApi('POST', '/rest/v1/' + tableName + '?select=*', r).then(d => d && d.length ? d[0] : null),
     update: (id, u) => supabaseApi('PATCH', '/rest/v1/' + tableName + '?id=eq.' + id + '&select=*', u).then(d => d && d.length ? d[0] : null),
-    delete: id => supabaseApi('DELETE', '/rest/v1/' + tableName + '?id=eq.' + id)
+    delete: id => supabaseApi('DELETE', '/rest/v1/' + tableName + '?id=eq.' + id),
+    increment: (id, field, amount) => supabaseApi('GET', '/rest/v1/' + tableName + '?select=*&id=eq.' + id).then(items => { if (!items||!items.length) return null; const val = (items[0][field]||0) + (amount||1); return supabaseApi('PATCH', '/rest/v1/' + tableName + '?id=eq.' + id + '&select=*', { [field]: val }).then(d => d&&d.length ? d[0] : null); })
   };
 }
 
@@ -267,5 +270,52 @@ async function initDb() {
   if (MODE === 'json') { jsonInitDb(); return; }
   await sbInitDb();
 }
+
+async function ensureStorageBuckets() {
+  try {
+    const sb = getSupabaseClient();
+    /* Try creating uploads bucket if not exists */
+    try {
+      const { data: buckets } = await sb.storage.listBuckets();
+      var hasUploads = buckets && buckets.some(function(b) { return b.name === 'uploads'; });
+      if (!hasUploads) {
+        var { error } = await sb.storage.createBucket('uploads', { public: true, fileSizeLimit: 52428800 });
+        if (!error) console.log('[DB] storage bucket "uploads" created');
+        else console.error('[DB] create bucket:', error.message);
+      }
+    } catch(be) { console.log('[DB] storage bucket check skipped:', be.message); }
+  } catch(e) { console.log('[DB] storage setup skipped:', e.message); }
+}
+
+/* ===== RLS Policies ===== */
+/*
+  SUPABASE RLS 策略参考 (在 Supabase SQL Editor 中手动执行):
+
+  -- users: 用户只能读自己的数据，管理员可读写全部
+  CREATE POLICY "users_select_own" ON users FOR SELECT USING (auth.uid()::text = id::text OR
+    (SELECT role FROM users WHERE id::text = auth.uid()::text) IN ('admin', 'semi_admin'));
+  CREATE POLICY "users_update_own" ON users FOR UPDATE USING (auth.uid()::text = id::text);
+
+  -- articles: 所有人可读，作者和管理员可编辑
+  CREATE POLICY "articles_select_all" ON articles FOR SELECT USING (true);
+  CREATE POLICY "articles_insert_auth" ON articles FOR INSERT WITH CHECK (true);
+  CREATE POLICY "articles_update_author" ON articles FOR UPDATE USING
+    (author_id::text = auth.uid()::text OR
+    (SELECT role FROM users WHERE id::text = auth.uid()::text) IN ('admin', 'semi_admin'));
+
+  -- comments: 所有人可读，登录用户可写
+  CREATE POLICY "comments_select_all" ON comments FOR SELECT USING (true);
+  CREATE POLICY "comments_insert_auth" ON comments FOR INSERT WITH CHECK (true);
+  CREATE POLICY "comments_delete_own" ON comments FOR DELETE USING (user_id::text = auth.uid()::text);
+
+  -- messages: 只有收发双方可读
+  CREATE POLICY "messages_select_own" ON messages FOR SELECT USING
+    (sender_id::text = auth.uid()::text OR receiver_id::text = auth.uid()::text);
+  CREATE POLICY "messages_insert_own" ON messages FOR INSERT WITH CHECK (sender_id::text = auth.uid()::text);
+
+  -- friends: 参与方可见
+  CREATE POLICY "friends_select_own" ON friends FOR SELECT USING
+    (user_id::text = auth.uid()::text OR friend_id::text = auth.uid()::text);
+*/
 
 module.exports = { db, initDb, MODE };

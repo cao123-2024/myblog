@@ -1,4 +1,4 @@
-function render_friends() {
+﻿function render_friends() {
   if (!Store.user) { navigate('home'); return document.createElement('div'); }
 
   var wrap = document.createElement('div');
@@ -37,10 +37,10 @@ async function loadFriendList() {
       html += '<h3 class="mb-3" style="font-size:0.9rem;font-weight:600;color:var(--text-secondary)">待处理的申请</h3>';
       incoming.forEach(function(p){
         var u = p.other || {};
-        html += '<div class="card-glass" style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;margin-bottom:8px">';
-        html += '<div class="flex items-center gap-3">';
-        html += '<div class="comment-avatar" style="width:44px;height:44px;background-image:url('+avatarUrl(u)+')"></div>';
-        html += '<div><div class="font-medium">'+escapeHtml(u.nickname||u.username||'未知')+'</div><div class="text-xs text-secondary">@'+escapeHtml(u.username||'')+'</div></div>';
+       html += '<div class="card-glass" style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;margin-bottom:8px">';
+       html += '<div class="flex items-center gap-3">';
+        html += '<div class="comment-avatar" style="width:44px;height:44px;background-image:'+cssUrl(avatarUrl(u))+'"></div>';
+       html += '<div><div class="font-medium">'+escapeHtml(u.nickname||u.username||'未知')+'</div><div class="text-xs text-secondary">@'+escapeHtml(u.username||'')+'</div></div>';
         html += '</div>';
         html += '<div class="flex gap-2">';
         html += '<button class="btn btn-primary btn-sm" onclick="acceptFriend('+u.id+')">接受</button>';
@@ -55,10 +55,10 @@ async function loadFriendList() {
     if(sent.length > 0){
       html += '<h3 class="mb-3" style="font-size:0.9rem;font-weight:600;color:var(--text-secondary)">已发送的申请</h3>';
       sent.forEach(function(p){
-        var u = p.other;
-        html += '<div class="card-glass" style="display:flex;align-items:center;padding:16px 20px;margin-bottom:8px">';
-        html += '<div class="comment-avatar" style="width:44px;height:44px;margin-right:12px;background-image:url('+avatarUrl(u)+')"></div>';
-        html += '<div><div class="font-medium">'+escapeHtml(u.nickname||u.username)+'</div><div class="text-xs text-secondary">等待对方确认</div></div>';
+       var u = p.other;
+       html += '<div class="card-glass" style="display:flex;align-items:center;padding:16px 20px;margin-bottom:8px">';
+        html += '<div class="comment-avatar" style="width:44px;height:44px;margin-right:12px;background-image:'+cssUrl(avatarUrl(u))+'"></div>';
+       html += '<div><div class="font-medium">'+escapeHtml(u.nickname||u.username)+'</div><div class="text-xs text-secondary">等待对方确认</div></div>';
         html += '</div>';
       });
     }
@@ -71,7 +71,7 @@ async function loadFriendList() {
       data.friends.forEach(function(f){
         html += '<div class="card-glass" style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;cursor:pointer" onclick="navigate(\'profile\','+f.id+')">';
         html += '<div class="flex items-center gap-3">';
-        html += '<div class="comment-avatar" style="width:44px;height:44px;cursor:pointer;background-image:url('+avatarUrl(f)+')"></div>';
+        html += '<div class="comment-avatar" style="width:44px;height:44px;cursor:pointer;background-image:'+cssUrl(avatarUrl(f))+'"></div>';
         html += '<div><div class="font-medium">'+escapeHtml(f.nickname||f.username)+'</div><div class="text-xs text-secondary">@'+escapeHtml(f.username)+'</div></div>';
         html += '</div>';
         html += '<div class="flex gap-2">';

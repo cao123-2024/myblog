@@ -1,7 +1,9 @@
-let currentChatId = null;
+﻿let currentChatId = null;
 let currentChatIsFriend = false;
 let currentChatSentCount = 0;
 
+function _cleanupMessages() { if (chatPollInterval) { clearInterval(chatPollInterval); chatPollInterval = null; } }
+window._cleanupMessages = _cleanupMessages;
 function render_messages() {
   if (!Store.user) { navigate('login'); return document.createElement('div'); }
 
@@ -71,7 +73,7 @@ async function loadChatData() {
       row.onmouseleave = function(){ row.style.background = 'transparent'; };
       row.onclick = function(){ openChatWith(id); };
       var unread = c.unread ? '<span style="margin-left:auto;background:var(--blue);color:#fff;border-radius:10px;padding:2px 7px;font-size:0.65rem">'+c.unread+'</span>' : '';
-      row.innerHTML = '<div class="comment-avatar" style="background-image:url('+avatarUrl(c.other)+');width:36px;height:36px"></div>'
+      row.innerHTML = '<div class="comment-avatar" style="background-image:'+cssUrl(avatarUrl(c.other))+';width:36px;height:36px"></div>'
         + '<span class="font-medium text-sm">'+escapeHtml(c.other.nickname||c.other.username)+'</span>'+unread;
       el.appendChild(row);
     });
@@ -83,9 +85,9 @@ async function loadChatData() {
       row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;transition:background 0.2s;opacity:0.7';
       row.onmouseenter = function(){ row.style.background = 'var(--bg-glass)'; };
       row.onmouseleave = function(){ row.style.background = 'transparent'; };
-      row.onclick = function(){ openChatWith(f.id); };
-      row.innerHTML = '<div class="comment-avatar" style="background-image:url('+avatarUrl(f)+');width:36px;height:36px"></div>'
-        + '<span class="font-medium text-sm">'+escapeHtml(f.nickname||f.username)+'</span>';
+     row.onclick = function(){ openChatWith(f.id); };
+      row.innerHTML = '<div class="comment-avatar" style="background-image:' + cssUrl(avatarUrl(f)) + ';width:36px;height:36px"></div>'
+       + '<span class="font-medium text-sm">'+escapeHtml(f.nickname||f.username)+'</span>';
       el.appendChild(row);
     });
 
@@ -143,7 +145,7 @@ async function openChatWith(userId) {
   } catch (e) { toast(e.message, 'error'); }
 
   if (chatPollInterval) clearInterval(chatPollInterval);
-  chatPollInterval = setInterval(pollMessages, 3000);
+  chatPollInterval = setInterval(pollMessages, 8000);  /* fallback every 8s, WS provides real-time */
 }
 
 function updateChatInputState() {
@@ -324,9 +326,9 @@ function adminBroadcastRender(){
   for(var i=0; i<filtered.length; i++){
     var u = filtered[i];
     var checked = !!_abSelected[u.id];
-    var avUrl = avatarUrl(u);
-    var av = avUrl ? 'style="background-image:url('+escapeHtml(avUrl)+')"' : '';
-    var tag = u.tag ? '<span class="text-xs text-tertiary">['+escapeHtml(u.tag)+']</span>' : '';
+   var avUrl = avatarUrl(u);
+    var av = avUrl ? 'style="background-image:' + cssUrl(avUrl) + '"' : '';
+   var tag = u.tag ? '<span class="text-xs text-tertiary">['+escapeHtml(u.tag)+']</span>' : '';
     var roleBadge = '';
     if(u.role==='admin' && !u.created_by) roleBadge = '<span class="text-xs" style="color:var(--purple, #a855f7)">超管</span>';
     else if(u.role==='admin') roleBadge = '<span class="text-xs" style="color:var(--blue)">管理员</span>';
@@ -387,3 +389,31 @@ async function adminBroadcastSend(){
     if(btn){ btn.disabled = false; btn.textContent = '发送群发消息'; }
   }
 }
+
+
+/* WebSocket 实时消息处理 */
+window._onWsNewMessage = function(data) {
+  if (!data || !data.msg) return;
+  var m = data.msg;
+  if (m.receiver_id === (Store.user && Store.user.id) && m.sender_id === currentChatId) {
+    /* new incoming message in current chat - append immediately */
+    var el = document.getElementById('chat-messages');
+    if (el) {
+      var div = document.createElement('div');
+      div.className = 'chat-msg theirs';
+      div.textContent = m.content;
+      el.appendChild(div);
+      el.scrollTop = el.scrollHeight;
+    }
+  } else if (m.sender_id === (Store.user && Store.user.id) && m.receiver_id === currentChatId) {
+    /* sent message confirmation - append mine */
+    var el = document.getElementById('chat-messages');
+    if (el) {
+      var div = document.createElement('div');
+      div.className = 'chat-msg mine';
+      div.textContent = m.content;
+      el.appendChild(div);
+      el.scrollTop = el.scrollHeight;
+    }
+  }
+};

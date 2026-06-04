@@ -1,3 +1,11 @@
+﻿/* UTF-8 → base64，替代废弃的 unescape(encodeURIComponent(...)) */
+function svgToBase64(svgStr) {
+  return btoa(encodeURIComponent(svgStr).replace(/%([0-9A-F]{2})/g, function(_, p) {
+    return String.fromCharCode(parseInt(p, 16));
+  }));
+}
+window.svgToBase64 = svgToBase64;
+
 const API = {
   base: '/api',
   token: localStorage.getItem('token') || '',
@@ -54,16 +62,18 @@ const Store = {
     localStorage.setItem('token', token); API.token = token;
     this.adminToken = ''; API.adminToken = '';
     localStorage.removeItem('adminToken');
-    setTimeout(updateNav, 50);
+    setTimeout(function(){ updateNav(); wsConnect(); }, 50);
   },
   loginAdmin(at) {
     this.adminToken = at; localStorage.setItem('adminToken', at); API.adminToken = at;
     updateNav();
+    wsConnect();
   },
   logout() {
     this.token = ''; this.adminToken = ''; this.user = null;
     API.token = ''; API.adminToken = '';
     localStorage.removeItem('token'); localStorage.removeItem('adminToken');
+    wsDisconnect();
     updateNav();
   },
   logoutAdmin() {
@@ -156,7 +166,66 @@ var App = {
     var page = location.hash.slice(1) || 'home';
     navigate(page);
 
-    /* Start polling for unread messages & announcements */
+    
+/* ===== WebSocket 实时通信管理器 ===== */
+var _ws = null;
+var _wsReconnectTimer = null;
+var _wsReconnectAttempts = 0;
+var _wsMaxReconnect = 10;
+var _wsEventHandlers = {};
+
+function wsConnect() {
+  if (!Store.token) return;
+  if (_ws && (_ws.readyState === 0 || _ws.readyState === 1)) return;
+  try {
+    var proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    var wsUrl = proto + '//' + window.location.host + '/ws?token=' + encodeURIComponent(Store.token);
+    _ws = new WebSocket(wsUrl);
+    _ws.onopen = function() { _wsReconnectAttempts = 0; };
+    _ws.onclose = function() { wsReconnect(); };
+    _ws.onerror = function() { _ws && _ws.close(); };
+    _ws.onmessage = function(e) {
+      try {
+        var msg = JSON.parse(e.data);
+        if (msg.type === 'connected' || msg.type === 'pong') return;
+        if (msg.type === 'new_message') {
+          if (typeof window._onWsNewMessage === 'function') window._onWsNewMessage(msg.data);
+          pollUnreadCount();
+          return;
+        }
+        if (msg.type === 'admin_notify') {
+          var n = msg.data;
+          if (n.type === 'new_user') {
+            toast('新用户注册: ' + (n.nickname || n.username), 'info');
+          }
+          return;
+        }
+        if (msg.type === 'appeal_result') {
+          var result = msg.data.status === 'approved' ? '已批准' : '已驳回';
+          toast('申诉' + result + (msg.data.admin_msg ? ': ' + msg.data.admin_msg : ''), msg.data.status === 'approved' ? 'success' : 'info');
+          return;
+        }
+      } catch(e) {}
+    };
+  } catch(e) { wsReconnect(); }
+}
+
+function wsReconnect() {
+  if (_wsReconnectAttempts >= _wsMaxReconnect) return;
+  if (_wsReconnectTimer) clearTimeout(_wsReconnectTimer);
+  var delay = Math.min(1000 * Math.pow(2, _wsReconnectAttempts), 30000);
+  _wsReconnectAttempts++;
+  _wsReconnectTimer = setTimeout(wsConnect, delay);
+}
+
+function wsDisconnect() {
+  if (_wsReconnectTimer) { clearTimeout(_wsReconnectTimer); _wsReconnectTimer = null; }
+  _wsReconnectAttempts = _wsMaxReconnect;
+  if (_ws) { _ws.close(); _ws = null; }
+}
+
+  /* Start polling for unread messages & announcements - also connect WS */
+  wsConnect();
     if (Store.token) {
       pollUnreadCount();
       setInterval(pollUnreadCount, 15000);
@@ -232,6 +301,14 @@ function escapeHtml(str) {
   return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+/* CSS URL 安全包裹 — 防止用户生成URL注入 */
+function cssUrl(url) {
+  if (!url) return 'none';
+  var safe = url.replace(/'/g, '%27').replace(/\)/g, '%29').replace(/"/g, '%22');
+  return "url('" + safe + "')";
+}
+window.cssUrl = cssUrl;
+
 var PRESET_AVATARS = [
   { id:'av1',  name:'小猫', svg:'<svg viewBox="0 0 100 100"><rect width="100" height="100" rx="50" fill="#FFB347"/><ellipse cx="32" cy="30" rx="16" ry="22" fill="#FFDAB9"/><ellipse cx="68" cy="30" rx="16" ry="22" fill="#FFDAB9"/><ellipse cx="50" cy="55" rx="28" ry="24" fill="#FFDAB9"/><circle cx="50" cy="50" r="4" fill="#8B4513"/><ellipse cx="38" cy="60" rx="6" ry="4" fill="#FFB6C1"/><ellipse cx="62" cy="60" rx="6" ry="4" fill="#FFB6C1"/><line x1="50" y1="54" x2="50" y2="62" stroke="#8B4513" stroke-width="2"/></svg>' },
   { id:'av2',  name:'小狗', svg:'<svg viewBox="0 0 100 100"><rect width="100" height="100" rx="50" fill="#8B6914"/><ellipse cx="50" cy="48" rx="26" ry="22" fill="#DEB887"/><ellipse cx="30" cy="22" rx="13" ry="20" fill="#8B4513"/><ellipse cx="70" cy="22" rx="13" ry="20" fill="#8B4513"/><ellipse cx="38" cy="44" rx="3" ry="4" fill="#333"/><ellipse cx="62" cy="44" rx="3" ry="4" fill="#333"/><ellipse cx="50" cy="55" rx="8" ry="5" fill="#C4A882"/><ellipse cx="50" cy="57" rx="3" ry="2" fill="#E9967A"/><ellipse cx="50" cy="65" rx="15" ry="10" fill="#DEB887"/></svg>' },
@@ -254,7 +331,7 @@ function getDefaultAvatar(username) {
     for (var i = 0; i < username.length; i++) h = ((h << 5) - h) + username.charCodeAt(i);
     idx = Math.abs(h) % PRESET_AVATARS.length;
   }
-  return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(PRESET_AVATARS[idx].svg)));
+  return 'data:image/svg+xml;base64,' + svgToBase64(PRESET_AVATARS[idx].svg);
 }
 window.getDefaultAvatar = getDefaultAvatar;
 
@@ -308,3 +385,4 @@ function compressImage(file, maxW, maxH, quality) {
     img.src = url;
   });
 }
+

@@ -161,7 +161,7 @@ function initDualMode() {
     + '<h3 style="font-size:1.1rem;font-weight:600;margin-bottom:16px">双人对战</h3>'
     + '<div style="display:flex;justify-content:center;gap:8px;margin-bottom:20px;flex-wrap:wrap" id="dual-game-select"></div>'
     + '<div style="display:flex;align-items:center;justify-content:center;gap:30px;margin-bottom:24px">'
-    + '<div style="text-align:center"><div style="width:64px;height:64px;border-radius:50%;background-size:cover;background-position:center;margin:0 auto 8px;background-color:rgba(255,255,255,0.06);border:2px solid var(--blue);background-image:url('+avatarUrl(Store.user)+')"></div><div class="text-sm font-medium">'+escapeHtml(Store.user?.nickname||'')+' (你)</div></div>'
+    + '<div style="text-align:center"><div style="width:64px;height:64px;border-radius:50%;background-size:cover;background-position:center;margin:0 auto 8px;background-color:rgba(255,255,255,0.06);border:2px solid var(--blue);background-image:' + cssUrl(avatarUrl(Store.user)) + ')"></div><div class="text-sm font-medium">'+escapeHtml(Store.user?.nickname||'')+' (你)</div></div>'
     + '<div style="font-size:2rem;color:var(--text-tertiary)">VS</div>'
     + '<div id="dual-opponent-slot" style="text-align:center"><div style="width:64px;height:64px;border-radius:50%;border:2px dashed rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;margin:0 auto 8px;cursor:pointer;transition:all 0.2s" id="dual-plus-btn" onclick="'+(_multiGameType==='mechabattle'?'launchGame(\'mechabattle\')':'showDualInviteOptions()')+'"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><div class="text-xs text-secondary">'+(_multiGameType==='mechabattle'?'开始本地对战':'选择对手')+'</div></div>'
     + '</div><div id="dual-status" style="min-height:24px;margin-bottom:16px"></div><div id="dual-actions"></div></div>'
@@ -204,7 +204,7 @@ function checkIncomingInvites() {
         var gi = DUAL_GAMES.find(function(g){return g.id===(inv.game_type||'gomoku');})||DUAL_GAMES[0];
         return '<div class="card-glass invite-popup-card" style="padding:16px 20px;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;animation:fadeInUp 0.3s var(--jelly-soft);border-left:3px solid '+gi.color+'">'
           + '<div style="display:flex;align-items:center;gap:12px">'
-          + '<div style="width:40px;height:40px;border-radius:50%;background-size:cover;background-position:center;background-color:rgba(255,255,255,0.06);background-image:url('+avatarUrl(inv.from)+')"></div>'
+          + '<div style="width:40px;height:40px;border-radius:50%;background-size:cover;background-position:center;background-color:rgba(255,255,255,0.06);background-image:' + cssUrl(avatarUrl(inv.from)) + ')"></div>'
           + '<div><div class="text-sm font-medium">'+escapeHtml(inv.from.nickname||inv.from.username)+'</div>'
           + '<div class="text-xs text-secondary">邀请你对战 <span style="color:'+gi.color+';font-weight:600">'+gi.name+'</span></div></div></div>'
           + '<div style="display:flex;gap:8px">'
@@ -273,14 +273,14 @@ async function loadGameFriendList() {
       var dis = f.in_game ? 'style="opacity:0.4;pointer-events:none"' : 'style="cursor:pointer"';
       var tag = f.in_game ? '<span class="text-xs" style="color:#CF222E">对战中</span>' : '<span class="text-xs" style="color:#1A7F37">\u25CF 在线</span>';
       html += '<div class="card-glass" style="padding:10px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between" '+dis+' onclick="if(!'+f.in_game+')inviteFriend('+f.id+',\''+escapeHtml(f.nickname||f.username)+'\',\''+escapeHtml(avatarUrl(f))+'\')">'
-        + '<div style="display:flex;align-items:center;gap:10px"><div style="width:36px;height:36px;border-radius:50%;background-size:cover;background-position:center;background-color:rgba(255,255,255,0.06);background-image:url('+avatarUrl(f)+')"></div>'
+        + '<div style="display:flex;align-items:center;gap:10px"><div style="width:36px;height:36px;border-radius:50%;background-size:cover;background-position:center;background-color:rgba(255,255,255,0.06);background-image:' + cssUrl(avatarUrl(f)) + ')"></div>'
         + '<span class="text-sm font-medium">'+escapeHtml(f.nickname||f.username)+'</span></div>'+tag+'</div>';
     });
     if (off.length > 0) {
       html += '<div class="text-xs text-secondary mt-2 mb-1">离线好友</div>';
       off.forEach(function(f){
         html += '<div class="card-glass" style="padding:10px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;opacity:0.4">'
-          + '<div style="display:flex;align-items:center;gap:10px"><div style="width:36px;height:36px;border-radius:50%;background-size:cover;background-position:center;background-color:rgba(255,255,255,0.06);background-image:url('+avatarUrl(f)+')"></div>'
+          + '<div style="display:flex;align-items:center;gap:10px"><div style="width:36px;height:36px;border-radius:50%;background-size:cover;background-position:center;background-color:rgba(255,255,255,0.06);background-image:' + cssUrl(avatarUrl(f)) + ')"></div>'
           + '<span class="text-sm font-medium">'+escapeHtml(f.nickname||f.username)+'</span></div><span class="text-xs text-secondary">离线</span></div>';
       });
     }
@@ -296,7 +296,7 @@ async function inviteFriend(uid, nm, av) {
   try {
     await API.post('/game/invite/' + uid, {game_type: gt});
     var gi = DUAL_GAMES.find(function(g){return g.id===gt;})||DUAL_GAMES[0];
-    document.getElementById('dual-opponent-slot').innerHTML = '<div style="text-align:center"><div style="width:64px;height:64px;border-radius:50%;background-size:cover;background-position:center;margin:0 auto 8px;background-color:rgba(255,255,255,0.06);background-image:url('+escapeHtml(av)+')"></div><div class="text-sm font-medium">'+escapeHtml(nm)+'</div></div>';
+    document.getElementById('dual-opponent-slot').innerHTML = '<div style="text-align:center"><div style="width:64px;height:64px;border-radius:50%;background-size:cover;background-position:center;margin:0 auto 8px;background-color:rgba(255,255,255,0.06);background-image:' + cssUrl(av) + ')"></div><div class="text-sm font-medium">'+escapeHtml(nm)+'</div></div>';
     document.getElementById('dual-status').innerHTML = '<p class="text-sm" style="color:'+gi.color+'">等待 '+escapeHtml(nm)+' 接受 '+gi.name+' 邀请...</p>';
     document.getElementById('dual-actions').innerHTML = '<button class="btn btn-glass btn-sm" onclick="cancelInvite()">取消邀请</button>';
     toast('已向 '+escapeHtml(nm)+' 发送 '+gi.name+' 对战邀请', 'success');
@@ -315,7 +315,7 @@ async function startRandomMatch() {
   if (_multiGameType === 'mechabattle') { launchGame('mechabattle'); return; }
   try {
     var d = await API.get('/game/queue?game_type='+_multiGameType);
-    if(d.room){ document.getElementById('dual-opponent-slot').innerHTML = '<div style="text-align:center"><div style="width:64px;height:64px;border-radius:50%;background-size:cover;background-position:center;margin:0 auto 8px;background-color:rgba(255,255,255,0.06);background-image:url('+avatarUrl(d.room.opponent)+')"></div><div class="text-sm font-medium">'+escapeHtml(d.room.opponent?.nickname||'')+'</div></div>'; toast('已匹配到对手!','success'); dualStartGame(d.room); return; }
+    if(d.room){ document.getElementById('dual-opponent-slot').innerHTML = '<div style="text-align:center"><div style="width:64px;height:64px;border-radius:50%;background-size:cover;background-position:center;margin:0 auto 8px;background-color:rgba(255,255,255,0.06);background-image:' + cssUrl(avatarUrl(d.room.opponent)) + ')"></div><div class="text-sm font-medium">'+escapeHtml(d.room.opponent?.nickname||'')+'</div></div>'; toast('已匹配到对手!','success'); dualStartGame(d.room); return; }
     var gi = DUAL_GAMES.find(function(g){return g.id===_multiGameType;})||DUAL_GAMES[0];
     document.getElementById('dual-status').innerHTML = '<p class="text-sm" style="color:'+gi.color+'">匹配中... '+gi.name+'</p>';
     document.getElementById('dual-actions').innerHTML = '<button class="btn btn-glass btn-sm" onclick="cancelMatch()">取消匹配</button>';
@@ -329,7 +329,7 @@ function pollMatchStatus() {
     try {
       var d = await API.get('/game/queue/status');
       if(d.matched&&d.room){ clearInterval(_matchPollInterval);_matchPollInterval=null;
-        document.getElementById('dual-opponent-slot').innerHTML = '<div style="text-align:center"><div style="width:64px;height:64px;border-radius:50%;background-size:cover;background-position:center;margin:0 auto 8px;background-color:rgba(255,255,255,0.06);background-image:url('+avatarUrl(d.room.opponent)+')"></div><div class="text-sm font-medium">'+escapeHtml(d.room.opponent?.nickname||'')+'</div></div>';
+        document.getElementById('dual-opponent-slot').innerHTML = '<div style="text-align:center"><div style="width:64px;height:64px;border-radius:50%;background-size:cover;background-position:center;margin:0 auto 8px;background-color:rgba(255,255,255,0.06);background-image:' + cssUrl(avatarUrl(d.room.opponent)) + ')"></div><div class="text-sm font-medium">'+escapeHtml(d.room.opponent?.nickname||'')+'</div></div>';
         document.getElementById('dual-status').innerHTML = '<p class="text-sm" style="color:#1A7F37">已匹配!</p>'; toast('已匹配到对手!','success');
         _multiGameType = d.room.game_type||'gomoku'; setTimeout(function(){dualStartGame(d.room);},500); }
     } catch(e){}

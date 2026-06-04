@@ -12,9 +12,9 @@ function render_home() {
     { img: '/img/slide-3.jpg', title: 'Self-Hosted & Serverless', desc: 'Powered by Vercel edge functions · Supabase PostgreSQL · zero-cost deployment with automatic HTTPS' }
   ];
 
-  var slideHTML = slides.map(function(s) {
-    return '<div class="carousel-slide" style="background-image:url(' + s.img + ')"><div class="carousel-slide-content"><h2>' + s.title + '</h2><p>' + s.desc + '</p></div></div>';
-  }).join('');
+ var slideHTML = slides.map(function(s) {
+    return '<div class="carousel-slide" style="background-image:' + cssUrl(s.img) + '"><div class="carousel-slide-content"><h2>' + s.title + '</h2><p>' + s.desc + '</p></div></div>';
+ }).join('');
 
   carousel.innerHTML = '<div class="carousel-track" id="carousel-track">' + slideHTML + '</div>'
     + '<div class="carousel-dots" id="carousel-dots"></div>'
@@ -89,9 +89,9 @@ async function loadArticles(container) {
       articles.forEach(function(a){
         var hasImg = a.cover_image;
         var dl = a.download_id ? '<a class="btn btn-glass btn-sm" style="padding:2px 8px;font-size:0.7rem;margin-left:auto" href="#downloads" onclick="navigate(\'downloads\')">📎 相关下载</a>' : '';
-        html += '<div class="card-glass article-card mb-4" onclick="var e=arguments[0];if(e&&e.target.closest(\'.article-card-actions,a,.btn\'))return;navigate(\'article\','+a.id+')">'
-          + (hasImg ? '<div class="article-card-img" style="background-image:url('+a.cover_image+')"></div>' : '')
-          + '<div class="article-card-body" style="'+(hasImg?'':'padding-left:0')+'">'
+       html += '<div class="card-glass article-card mb-4" onclick="var e=arguments[0];if(e&&e.target.closest(\'.article-card-actions,a,.btn\'))return;navigate(\'article\','+a.id+')">'
+          + (hasImg ? '<div class="article-card-img" style="background-image:' + cssUrl(a.cover_image) + '"></div>' : '')
+         + '<div class="article-card-body" style="'+(hasImg?'':'padding-left:0')+'">'
           + '<div style="display:flex;align-items:center;justify-content:space-between">'
           + '<h3>'+escapeHtml(a.title)+'</h3>'
           + dl

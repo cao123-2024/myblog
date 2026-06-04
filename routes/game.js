@@ -52,8 +52,16 @@ router.get('/queue', auth, async function(req, res) {
       return res.json({ queued: true, room: null, message: '已在匹配队列中' });
     }
     var opponents = await db('game_queue').find({ status: 'waiting' });
-    var opponent = opponents.find(function(o) { return o.user_id !== req.user.id && (o.game_type || 'gomoku') === gameType; });
+    var opponent = null;
+    for (var oi = 0; oi < opponents.length; oi++) {
+      var cand = opponents[oi];
+      if (cand.user_id === req.user.id || (cand.game_type || 'gomoku') !== gameType) continue;
+      /* Re-read to check it's still waiting (atomic guard) */
+      var fresh = await db('game_queue').getById(cand.id);
+      if (fresh && fresh.status === 'waiting') { opponent = fresh; break; }
+    }
     if (opponent) {
+      await db('game_queue').update(opponent.id, { status: 'matched', matched_with: req.user.id, room_id: -1 });
       var room = await db('game_rooms').insert({
         player1: opponent.user_id,
         player2: req.user.id,
@@ -63,7 +71,7 @@ router.get('/queue', auth, async function(req, res) {
         status: 'active',
         created_at: new Date().toISOString()
       });
-      await db('game_queue').update(opponent.id, { status: 'matched', matched_with: req.user.id, room_id: room.id });
+      await db('game_queue').update(opponent.id, { room_id: room.id });
       await db('game_queue').insert({
         user_id: req.user.id,
         game_type: gameType,

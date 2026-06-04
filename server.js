@@ -1,7 +1,9 @@
 const express = require('express');
+const http = require('http');
 const path = require('path');
 const fs = require('fs');
 const { initDb, MODE } = require('./database/init');
+const { setupWebSocket, notifyUser, notifyAdmins } = require('./wsserver');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -89,7 +91,10 @@ app.get('*', function(req, res){
 
 if (!isVercel) {
   _dbInit.then(function(){
-    app.listen(PORT, function(){});
+    const server = http.createServer(app);
+    setupWebSocket(server);
+    app.set('wsNotify', { notifyUser: notifyUser, notifyAdmins: notifyAdmins });
+    server.listen(PORT, function(){});
   }).catch(function(err){
     console.error('FATAL:', err.message);
     process.exit(1);

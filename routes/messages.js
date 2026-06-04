@@ -113,6 +113,10 @@ router.post('/send/:userId', auth, async (req, res) => {
     read: 0,
     created_at: new Date().toISOString()
   });
+  var wsNotify = req.app && req.app.get && req.app.get('wsNotify');
+  if (wsNotify && wsNotify.notifyUser) {
+    wsNotify.notifyUser(receiverId, { type: 'new_message', data: { msg: { id: msg.id, sender_id: req.user.id, receiver_id: receiverId, content: req.body.content, created_at: msg.created_at, read: 0 } } });
+  }
   res.json({ message: msg });
 });
 

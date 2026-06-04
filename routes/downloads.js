@@ -75,7 +75,7 @@ router.post('/', auth, adminOnly, upload.single('file'), async (req, res) => {
 router.get('/:id/dl', async (req, res) => {
   var item = await db('downloads').getById(parseInt(req.params.id));
   if (!item) return res.status(404).json({ error: '文件不存在' });
-  await db('downloads').update(item.id, { download_count: (item.download_count || 0) + 1 });
+  await db('downloads').increment(item.id, 'download_count', 1);
 
   if (item.type === 'link' && item.url) {
     return res.redirect(item.url);

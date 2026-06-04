@@ -1,4 +1,4 @@
-function render_profile(userId) {
+﻿function render_profile(userId) {
   var wrap = document.createElement('div');
   wrap.className = 'stagger';
   var isMe = !userId || userId === Store.user?.id;
@@ -22,13 +22,13 @@ async function loadProfile(wrap, targetId, isMe) {
     var canUpload = u.can_upload_images || Store.isAdmin();
 
     var avUrl = u.avatar || getDefaultAvatar(u.username);
-    wrap.innerHTML = ''
-      + '<div class="profile-header card-glass" style="padding:0">'
-      + '<div class="profile-bg" style="background-image:url('+(u.bg_image||'')+')"></div>'
-      + '<div style="position:relative">'
-      + '<div class="profile-avatar-wrap">'
-      + '<div class="profile-avatar-lg" style="background-image:url(\''+avUrl+'\');background-color:'+(u.avatar?'':'rgba(255,255,255,0.06)')+'"></div>'
-      + '</div></div>'
+   wrap.innerHTML = ''
+     + '<div class="profile-header card-glass" style="padding:0">'
+      + '<div class="profile-bg" style="background-image:' + cssUrl(u.bg_image) + '"></div>'
+     + '<div style="position:relative">'
+     + '<div class="profile-avatar-wrap">'
+      + '<div class="profile-avatar-lg" style="background-image:' + cssUrl(avUrl) + ';background-color:'+(u.avatar?'':'rgba(255,255,255,0.06)')+'"></div>'
+     + '</div></div>'
       + '<div class="profile-info">'
       + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">'
       + '<div>'
@@ -57,9 +57,9 @@ async function loadProfile(wrap, targetId, isMe) {
 function renderProfileArticles(articles) {
   if (articles.length === 0) return '<p class="text-sm text-secondary">暂无文章</p>';
   return articles.map(a => ''
-    + '<div class="card-glass article-card mb-4" onclick="navigate(\'article\', '+a.id+')">'
-    + (a.cover_image ? '<div class="article-card-img" style="background-image:url('+a.cover_image+')"></div>' : '')
-    + '<div class="article-card-body">'
+   + '<div class="card-glass article-card mb-4" onclick="navigate(\'article\', '+a.id+')">'
+    + (a.cover_image ? '<div class="article-card-img" style="background-image:' + cssUrl(a.cover_image) + '"></div>' : '')
+   + '<div class="article-card-body">'
     + '<h3>'+escapeHtml(a.title)+'</h3>'
     + '<p>'+escapeHtml(a.summary||'')+'</p>'
     + '<div class="article-card-meta">'+formatDate(a.created_at)+'</div>'
@@ -140,7 +140,7 @@ async function editProfileModal() {
     var selAv = window._selectedPresetAv;
     if (selAv) {
       var preset = PRESET_AVATARS.find(function(p){ return p.id === selAv; });
-      if (preset) fd.append('avatar_data', 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(preset.svg))));
+      if (preset) fd.append('avatar_data', 'data:image/svg+xml;base64,' + svgToBase64(preset.svg));
     } else if (canUpload) {
       var avEl = document.getElementById('edit-avatar');
       if (avEl && avEl.files && avEl.files[0]) fd.append('avatar', await compressProfileImage(avEl.files[0]));
@@ -228,10 +228,10 @@ async function loadSettingsWallpapers() {
   var curWp = Store.user.wallpaper || '';
   wps.forEach(function(w) {
     var sel = '';
-    if (curWp && w.url && curWp.replace(/^\/?/, '/') === w.url.replace(/^\/?/, '/')) sel = ' selected';
-    html += '<div class="settings-wp-item' + sel + '" data-url="' + escapeHtml(w.url) + '"'
-      + ' style="aspect-ratio:16/9;border-radius:10px;background-image:url('+escapeHtml(w.url)+');background-size:cover;background-position:center;cursor:pointer;border:2px solid transparent;transition:all 0.2s ease"'
-      + ' onclick="document.querySelectorAll(\'.settings-wp-item\').forEach(function(e){e.classList.remove(\'selected\')});this.classList.add(\'selected\')"'
+   if (curWp && w.url && curWp.replace(/^\/?/, '/') === w.url.replace(/^\/?/, '/')) sel = ' selected';
+   html += '<div class="settings-wp-item' + sel + '" data-url="' + escapeHtml(w.url) + '"'
+      + ' style="aspect-ratio:16/9;border-radius:10px;background-image:' + cssUrl(w.url) + ';background-size:cover;background-position:center;cursor:pointer;border:2px solid transparent;transition:all 0.2s ease"'
+     + ' onclick="document.querySelectorAll(\'.settings-wp-item\').forEach(function(e){e.classList.remove(\'selected\')});this.classList.add(\'selected\')"'
       + '></div>';
   });
   grid.innerHTML = html;
@@ -267,3 +267,4 @@ async function removeFriend(userId, name) {
     navigate('profile', userId);
   });
 }
+
