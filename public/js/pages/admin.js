@@ -191,7 +191,8 @@ async function loadAdminUsers() {
       }
 
       html += '<tr>'
-        + '<td>'+u.id+'</td>'\n        + '<td><div class="comment-avatar" style="background-image:' + cssUrl(avatarUrl(u)) + ';width:32px;height:32px;border-radius:50%;background-size:cover;background-color:var(--bg-glass)"></div></td>'
+        + '<td>'+u.id+'</td>'
+        + '<td><div class="comment-avatar" style="background-image:' + cssUrl(avatarUrl(u)) + ';width:32px;height:32px;border-radius:50%;background-size:cover;background-color:var(--bg-glass)"></div></td>'
         + '<td>'+escapeHtml(u.username)+'</td>'
         + '<td>'+escapeHtml(u.nickname||'')+'</td>'
         + '<td><span style="'+roleColor+';font-weight:500">'+roleLabel+'</span></td>'
