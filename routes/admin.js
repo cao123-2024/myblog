@@ -42,6 +42,10 @@ router.post('/request-verify', auth, adminOnly, async (req, res) => {
     return res.json({ message: msg, mode: 'pin' });
   }
 
+  if (ADMIN_PIN && ADMIN_PIN !== '000000') {
+    return res.json({ message: '请输入管理员PIN码', mode: 'pin' });
+  }
+
   var code = String(Math.floor(Math.random() * 900000 + 100000));
   await db('verifyCodes').insert({
     code: code,
@@ -59,14 +63,17 @@ router.post('/verify-and-login', auth, adminOnly, async (req, res) => {
   if (!code) return res.status(400).json({ error: '请输入验证码' });
 
   if (!isVercel) {
-    var allCodes = await db('verifyCodes').all();
-    allCodes.sort(function(a, b) { return new Date(b.created_at) - new Date(a.created_at); });
-    var latest = allCodes.find(function(c) { return c.used === 0; });
-    if (!latest) return res.status(400).json({ error: '无效或过期的验证码，请重新请求' });
-    var age = Date.now() - new Date(latest.created_at).getTime();
-    if (age > 5 * 60 * 1000) return res.status(400).json({ error: '验证码已过期（5分钟），请重新请求' });
-    if (code !== latest.code) return res.status(400).json({ error: '验证码错误，请核对终端显示的验证码' });
-    await db('verifyCodes').update(latest.id, { used: 1 });
+    if (ADMIN_PIN && code === ADMIN_PIN) { /* 环境变量 PIN 直接通过 */ }
+    else {
+      var allCodes = await db('verifyCodes').all();
+      allCodes.sort(function(a, b) { return new Date(b.created_at) - new Date(a.created_at); });
+      var latest = allCodes.find(function(c) { return c.used === 0 && c.code === code });
+      if (!latest) return res.status(400).json({ error: '验证码错误，请核对终端显示的验证码' });
+      var age = Date.now() - new Date(latest.created_at).getTime();
+      if (age > 5 * 60 * 1000) return res.status(400).json({ error: '验证码已过期（5分钟），请重新请求' });
+      if (latest.used) return res.status(400).json({ error: '验证码已使用' });
+      await db('verifyCodes').update(latest.id, { used: 1 });
+    }
   } else {
     if (!process.env.ADMIN_PIN) {
       if (code === '000000') return res.status(400).json({ error: 'PIN码错误（管理员未设置 ADMIN_PIN 环境变量，请联系管理员在 Vercel 控制台配置）' });

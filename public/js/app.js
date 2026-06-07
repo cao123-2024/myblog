@@ -62,18 +62,16 @@ const Store = {
     localStorage.setItem('token', token); API.token = token;
     this.adminToken = ''; API.adminToken = '';
     localStorage.removeItem('adminToken');
-    setTimeout(function(){ updateNav(); wsConnect(); }, 50);
+    setTimeout(function(){ updateNav(); }, 50);
   },
   loginAdmin(at) {
     this.adminToken = at; localStorage.setItem('adminToken', at); API.adminToken = at;
     updateNav();
-    wsConnect();
   },
   logout() {
     this.token = ''; this.adminToken = ''; this.user = null;
     API.token = ''; API.adminToken = '';
     localStorage.removeItem('token'); localStorage.removeItem('adminToken');
-    try { wsDisconnect(); } catch(e) {}
     updateNav();
   },
   logoutAdmin() {
