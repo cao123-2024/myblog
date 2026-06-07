@@ -266,7 +266,7 @@ async function handleAdminVerify(){
     var vData = await API.post('/admin/verify-and-login',{code});
     triggerBloomAndEnter(Store._pendingLogin.token, Store._pendingLogin.user, vData.adminToken);
   }catch(e){
-    showFieldError('admin-verify-code','验证码错误或已过期');
+    showFieldError('admin-verify-code', e.message || '验证码错误');
   }
 }
 

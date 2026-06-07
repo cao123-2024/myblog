@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const { db, MODE } = require('../database/db');
 const { auth, adminOnly, superAdminOnly, isSuperAdmin, canManageUser, canEditArticle, JWT_SECRET } = require('../middleware/auth');
 const jwt = require('jsonwebtoken');
@@ -11,6 +11,14 @@ function writeLine(s) { console.log('  ' + CY + '◌' + R + ' ' + s); }
 
 const isVercel = process.env.VERCEL === '1';
 const ADMIN_PIN = process.env.ADMIN_PIN || '000000';
+
+if (isVercel) {
+  if (process.env.ADMIN_PIN) {
+    writeLine(B + '管理员PIN码' + R + '  ' + D + ADMIN_PIN.slice(0,2) + '****' + R + '  (来自环境变量 ADMIN_PIN)');
+  } else {
+    writeLine(B + '管理员PIN码' + R + '  ' + D + '000000 (默认值)' + R + '  ' + D + '⚠ 未设置 ADMIN_PIN 环境变量，请在 Vercel 控制台添加' + R);
+  }
+}
 
 var _uploadTableOk = false;
 async function ensureUploadTable() {
@@ -25,7 +33,14 @@ async function ensureUploadTable() {
 }
 
 router.post('/request-verify', auth, adminOnly, async (req, res) => {
-  if (isVercel) return res.json({ message: '请输入管理员PIN码' });
+  if (isVercel) {
+    var hint = ADMIN_PIN;
+    if (hint.length > 2) hint = hint.slice(0, 2) + '****';
+    var msg = process.env.ADMIN_PIN
+      ? '请输入管理员PIN码（' + hint + '）'
+      : '请输入管理员PIN码';
+    return res.json({ message: msg, mode: 'pin' });
+  }
 
   var code = String(Math.floor(Math.random() * 900000 + 100000));
   await db('verifyCodes').insert({
@@ -44,20 +59,20 @@ router.post('/verify-and-login', auth, adminOnly, async (req, res) => {
   if (!code) return res.status(400).json({ error: '请输入验证码' });
 
   if (!isVercel) {
-    // 本地开发模式：跳过验证码，直接发放 adminToken
-    if (code !== 'DEV_BYPASS') {
-      var allCodes = await db('verifyCodes').all();
-      allCodes.sort(function(a, b) { return new Date(b.created_at) - new Date(a.created_at); });
-      var latest = allCodes.find(function(c) { return c.used === 0; });
-      if (!latest) return res.status(400).json({ error: '无效或过期的验证码，请重新请求' });
-      var age = Date.now() - new Date(latest.created_at).getTime();
-      if (age > 5 * 60 * 1000) return res.status(400).json({ error: '验证码已过期（5分钟），请重新请求' });
-      if (code !== latest.code) return res.status(400).json({ error: '验证码错误，请核对终端显示的验证码' });
-      await db('verifyCodes').update(latest.id, { used: 1 });
-    }
-    // code === 'DEV_BYPASS' 直接放行
+    var allCodes = await db('verifyCodes').all();
+    allCodes.sort(function(a, b) { return new Date(b.created_at) - new Date(a.created_at); });
+    var latest = allCodes.find(function(c) { return c.used === 0; });
+    if (!latest) return res.status(400).json({ error: '无效或过期的验证码，请重新请求' });
+    var age = Date.now() - new Date(latest.created_at).getTime();
+    if (age > 5 * 60 * 1000) return res.status(400).json({ error: '验证码已过期（5分钟），请重新请求' });
+    if (code !== latest.code) return res.status(400).json({ error: '验证码错误，请核对终端显示的验证码' });
+    await db('verifyCodes').update(latest.id, { used: 1 });
   } else {
-    if (code !== ADMIN_PIN) return res.status(400).json({ error: 'PIN码错误' });
+    if (!process.env.ADMIN_PIN) {
+      if (code === '000000') return res.status(400).json({ error: 'PIN码错误（管理员未设置 ADMIN_PIN 环境变量，请联系管理员在 Vercel 控制台配置）' });
+      return res.status(400).json({ error: 'PIN码错误' });
+    }
+    if (code !== ADMIN_PIN) return res.status(400).json({ error: 'PIN码错误（提示：以 ' + ADMIN_PIN.slice(0, 2) + ' 开头）' });
   }
 
   var adminToken = jwt.sign({ id: req.user.id, admin: true }, JWT_SECRET, { expiresIn: '2h' });
