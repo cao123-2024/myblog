@@ -154,9 +154,10 @@ async function editProfileModal() {
       if (bgEl && bgEl.files && bgEl.files[0]) fd.append('bg_image', await compressProfileImage(bgEl.files[0]));
     }
 
-    var data = await API.uploadPut('/users/profile', fd);
-    Store.user = data.user;
-    updateNav();
+   var data = await API.uploadPut('/users/profile', fd);
+    Store.setUser(data.user);
+    if (window._profileData && data.user) window._profileData.user = data.user;
+   updateNav();
     toast('资料已更新', 'success');
     navigate('profile');
   }, '保存');

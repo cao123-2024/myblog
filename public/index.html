@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -440,30 +440,6 @@
   transform: scale(1.03);
 }
 
-    /* Dev admin quick-login buttons */
-    .dev-admin-btn {
-      position: fixed;
-      z-index: 9999;
-      padding: 4px 10px;
-      font-size: 0.7rem;
-      font-weight: 600;
-      color: #fff;
-      background: rgba(0,120,212,0.65);
-      backdrop-filter: blur(8px);
-      border: 1px solid rgba(0,120,212,0.4);
-      border-radius: 6px;
-      cursor: pointer;
-      transition: all 0.25s cubic-bezier(0.34,1.56,0.64,1);
-      opacity: 0.5;
-    }
-    .dev-admin-btn:hover {
-      opacity: 1;
-      background: rgba(0,120,212,0.85);
-      transform: scale(1.05);
-      box-shadow: 0 2px 12px rgba(0,120,212,0.3);
-    }
-    .dev-admin-btn.tl { top: 8px; left: 8px; }
-    .dev-admin-btn.bl { bottom: 8px; left: 8px; }
 </style>
 </head>
 <body>
@@ -570,16 +546,10 @@
       <div class="swipe-dot" data-dot="1"></div>
     </div>
 
-   <div class="guest-row">
-     <button id="guest-btn">游客浏览</button>
+    <div class="guest-row">
+      <button id="guest-btn">游客浏览</button>
     </div>
-    <div id="devAdminBtnTL" class="hidden" style="position:fixed;top:8px;left:8px;z-index:99999">
-      <button class="btn btn-glass btn-sm" style="font-size:0.7rem;opacity:0.5" onclick="autoAdminLogin()" title="开发：管理员一键登录">⚡ 管理员</button>
-    </div>
-    <div id="devAdminBtnBL" class="hidden" style="text-align:center;padding:8px 0">
-      <button class="btn btn-glass btn-sm" style="font-size:0.7rem;opacity:0.5" onclick="autoAdminLogin()" title="开发：管理员一键登录">⚡ 管理员快速登录</button>
-   </div>
- </div>
+  </div>
 </div>
 
 <!-- ===== MAIN APP (hidden until login) ===== -->
@@ -593,6 +563,7 @@
         <a class="nav-link" data-page="downloads" onclick="navigate('downloads')">下载</a>
         <a class="nav-link" data-page="friends" onclick="navigate('friends')">好友</a>
         <a class="nav-link" data-page="announcements" onclick="navigate('announcements')">公告</a>
+        <a class="nav-link" data-page="sponsor" onclick="navigate('sponsor')">赞助</a>
         <a class="nav-link" data-page="sponsor" onclick="navigate('sponsor')">赞助</a>
         <a class="nav-link admin-only hidden" data-page="admin" onclick="navigate('admin')">管理</a>
       </div>
@@ -613,9 +584,6 @@
     </div>
   </nav>
 
-  <!-- Dev admin quick-login buttons (local only) -->
-  <button class="dev-admin-btn tl hidden" id="devAdminBtnTL" onclick="autoAdminLogin()">???</button>
-  <button class="dev-admin-btn bl hidden" id="devAdminBtnBL" onclick="autoAdminLogin()">???</button>
   <div class="main-content" id="main-content"></div>
 </div>
 
@@ -739,41 +707,6 @@ window._isLocal = location.hostname === 'localhost' || location.hostname === '12
 
 })();
 </script>
+
 </body>
 </html>
-
-
-  /* === Dev auto admin login (local only) === */
-  function autoAdminLogin() {
-    var u = prompt('?????????', 'admin');
-    if (!u) return;
-    var p = prompt('????????');
-    if (!p) return;
-    (async function() {
-      try {
-        toast('???...', 'info');
-        var loginData = await API.post('/login', { username: u, password: p });
-        if (loginData.user.role !== 'admin') {
-          toast('????????', 'error');
-          return;
-        }
-        Store.login(loginData.token, loginData.user);
-        var verifyData = await API.post('/admin/verify-and-login', { code: 'DEV_BYPASS' });
-        Store.loginAdmin(verifyData.adminToken);
-        toast('??????', 'success');
-        navigate('admin');
-      } catch(e) {
-        toast('????: ' + (e.message || '????'), 'error');
-      }
-    })();
-  }
-  /* Show dev buttons when local */
-  if (window._isLocal) {
-    (function() {
-      var btnTL = document.getElementById('devAdminBtnTL');
-      var btnBL = document.getElementById('devAdminBtnBL');
-      if (btnTL) btnTL.classList.remove('hidden');
-      if (btnBL) btnBL.classList.remove('hidden');
-    })();
-  }
-

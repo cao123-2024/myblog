@@ -1,4 +1,4 @@
-﻿/* UTF-8 → base64，替代废弃的 unescape(encodeURIComponent(...)) */
+/* UTF-8 → base64，替代废弃的 unescape(encodeURIComponent(...)) */
 function svgToBase64(svgStr) {
   return btoa(encodeURIComponent(svgStr).replace(/%([0-9A-F]{2})/g, function(_, p) {
     return String.fromCharCode(parseInt(p, 16));
@@ -19,9 +19,9 @@ const API = {
     return h;
   },
 
-  async request(method, path, body) {
-    const opts = { method, headers: this.headers() };
-    if (body && !(body instanceof FormData)) opts.body = JSON.stringify(body);
+ async request(method, path, body) {
+    var opts = { method, headers: this.headers(), cache: 'no-cache' };
+   if (body && !(body instanceof FormData)) opts.body = JSON.stringify(body);
     else if (body instanceof FormData) { opts.body = body; delete opts.headers['Content-Type']; }
     const res = await fetch(this.base + path, opts);
     let text = '';
@@ -159,9 +159,11 @@ var App = {
           Store.setUser(data.user);
           updateNav();
         }).catch(function(e){
-          Store.token = '';
-          localStorage.removeItem('token');
-          API.token = '';
+          if (e && e.status === 401) {
+            Store.token = '';
+            localStorage.removeItem('token');
+            API.token = '';
+          }
         });
       } catch(e) {}
     }
@@ -387,4 +389,3 @@ function compressImage(file, maxW, maxH, quality) {
     img.src = url;
   });
 }
-
